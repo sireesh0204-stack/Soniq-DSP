@@ -112,3 +112,4 @@
 ### Active Items in Flight:
 1. **Phone Speaker Baseline Sync**: Ensuring that selecting "ORIGINAL" while earbuds are disconnected visibly flips HyperOS phone speaker settings to the unenhanced baseline rather than defaulting to Dolby.
 2. **Choreographer 120Hz Visualizer**: Upgrading the wave drawing loop to a VSYNC-aligned `postInvalidateOnAnimation()` cadence for butter-smooth fluidity on the Redmi Turbo 5's 120Hz display.
+
