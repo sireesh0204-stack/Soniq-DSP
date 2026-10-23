@@ -61,9 +61,6 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
 
     private var isDspActive = false
     private var currentProfile = Buds2ProAudioProfile.ORIGINAL_SOUND
-
-    private lateinit var connectedConstraintSet: ConstraintSet
-    private lateinit var disconnectedConstraintSet: ConstraintSet
     private var lastConnectedState: Boolean? = null
 
     @Volatile
@@ -148,7 +145,6 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         bluetoothAdapter = (getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
 
-        initConstraintSets()
         initBluetoothProxy()
         audioManager?.let { manager ->
             manager.registerAudioPlaybackCallback(audioPlaybackCallback, null)
@@ -232,60 +228,97 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         }
     }
 
-    private fun initConstraintSets() {
-        val rootLayout = findViewById<ConstraintLayout>(R.id.rootLayout) ?: return
-        connectedConstraintSet = ConstraintSet().apply {
-            clone(rootLayout)
-        }
-        val density = resources.displayMetrics.density
-        disconnectedConstraintSet = ConstraintSet().apply {
-            clone(connectedConstraintSet)
-            setVisibility(R.id.visualizer, ConstraintSet.GONE)
-            setVisibility(R.id.btnMasterToggle, ConstraintSet.GONE)
-
-            clear(R.id.btnHyperOs, ConstraintSet.BOTTOM)
-            connect(
-                R.id.btnHyperOs,
-                ConstraintSet.TOP,
-                R.id.tvCodecStatus,
-                ConstraintSet.BOTTOM,
-                (48 * density).toInt()
-            )
-
-            clear(R.id.llToggles, ConstraintSet.BOTTOM)
-            connect(
-                R.id.llToggles,
-                ConstraintSet.TOP,
-                R.id.btnHyperOs,
-                ConstraintSet.BOTTOM,
-                (24 * density).toInt()
-            )
-        }
-    }
-
-    private fun applyLayoutTransition(connected: Boolean) {
-        if (!::connectedConstraintSet.isInitialized || !::disconnectedConstraintSet.isInitialized) return
+    private fun applyFluidMotion(connected: Boolean) {
         if (lastConnectedState == connected) return
         val isInitial = (lastConnectedState == null)
         lastConnectedState = connected
 
-        val rootLayout = findViewById<ConstraintLayout>(R.id.rootLayout) ?: return
-        if (!isInitial) {
-            val transition = TransitionSet().apply {
-                ordering = TransitionSet.ORDERING_TOGETHER
-                addTransition(ChangeBounds().apply {
-                    duration = 540L
-                    interpolator = PathInterpolator(0.16f, 1f, 0.3f, 1f)
-                })
-                addTransition(Fade().apply {
-                    duration = 400L
-                    interpolator = PathInterpolator(0.2f, 0f, 0f, 1f)
-                })
+        val rootLayout = findViewById<View>(R.id.rootLayout) ?: return
+        val tvCodecStatus = findViewById<TextView>(R.id.tvCodecStatus) ?: return
+        val visualizer = findViewById<AetherVisualizerView>(R.id.visualizer) ?: return
+        val btnMasterToggle = findViewById<Button>(R.id.btnMasterToggle) ?: return
+        val btnHyperOs = findViewById<Button>(R.id.btnHyperOs) ?: return
+        val llToggles = findViewById<View>(R.id.llToggles) ?: return
+
+        fun runAnimation(animate: Boolean) {
+            val density = resources.displayMetrics.density
+            val targetY = tvCodecStatus.bottom + (32 * density).toInt()
+            val travelY = if (connected) 0f else (targetY - btnHyperOs.top).toFloat()
+
+            val moveDuration = if (animate) 540L else 0L
+            val fadeDuration = if (animate) 340L else 0L
+            val fluidEase = PathInterpolator(0.22f, 1f, 0.36f, 1f)
+
+            if (connected) {
+                visualizer.visibility = View.VISIBLE
+                btnMasterToggle.visibility = View.VISIBLE
+                btnMasterToggle.isEnabled = true
+
+                visualizer.animate()
+                    .alpha(1f)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(fadeDuration)
+                    .setInterpolator(fluidEase)
+                    .start()
+
+                btnMasterToggle.animate()
+                    .alpha(1f)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(fadeDuration)
+                    .setInterpolator(fluidEase)
+                    .start()
+            } else {
+                btnMasterToggle.isEnabled = false
+                visualizer.animate()
+                    .alpha(0f)
+                    .scaleX(0.96f)
+                    .scaleY(0.96f)
+                    .setDuration(fadeDuration)
+                    .setInterpolator(fluidEase)
+                    .withEndAction {
+                        if (lastConnectedState == false) {
+                            visualizer.visibility = View.INVISIBLE
+                            visualizer.setDspActive(false)
+                        }
+                    }
+                    .start()
+
+                btnMasterToggle.animate()
+                    .alpha(0f)
+                    .scaleX(0.96f)
+                    .scaleY(0.96f)
+                    .setDuration(fadeDuration)
+                    .setInterpolator(fluidEase)
+                    .withEndAction {
+                        if (lastConnectedState == false) {
+                            btnMasterToggle.visibility = View.INVISIBLE
+                        }
+                    }
+                    .start()
             }
-            TransitionManager.beginDelayedTransition(rootLayout, transition)
+
+            btnHyperOs.animate()
+                .translationY(travelY)
+                .setDuration(moveDuration)
+                .setInterpolator(fluidEase)
+                .start()
+
+            llToggles.animate()
+                .translationY(travelY)
+                .setDuration(moveDuration)
+                .setInterpolator(fluidEase)
+                .start()
         }
-        val targetSet = if (connected) connectedConstraintSet else disconnectedConstraintSet
-        targetSet.applyTo(rootLayout)
+
+        if (btnHyperOs.top == 0) {
+            rootLayout.post {
+                runAnimation(animate = false)
+            }
+        } else {
+            runAnimation(animate = !isInitial)
+        }
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -306,9 +339,9 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                     MotionEvent.ACTION_DOWN -> {
                         isPressedDown = true
                         v.animate()
-                            .scaleX(0.955f)
-                            .scaleY(0.955f)
-                            .setDuration(120L)
+                            .scaleX(0.965f)
+                            .scaleY(0.965f)
+                            .setDuration(90L)
                             .setInterpolator(PathInterpolator(0.2f, 0f, 0f, 1f))
                             .start()
                         true
@@ -321,15 +354,15 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                             v.animate()
                                 .scaleX(1f)
                                 .scaleY(1f)
-                                .setDuration(240L)
-                                .setInterpolator(PathInterpolator(0.16f, 1f, 0.3f, 1f))
+                                .setDuration(220L)
+                                .setInterpolator(PathInterpolator(0.2f, 1f, 0.3f, 1f))
                                 .start()
                         } else if (isInside && !isPressedDown) {
                             isPressedDown = true
                             v.animate()
-                                .scaleX(0.955f)
-                                .scaleY(0.955f)
-                                .setDuration(120L)
+                                .scaleX(0.965f)
+                                .scaleY(0.965f)
+                                .setDuration(90L)
                                 .setInterpolator(PathInterpolator(0.2f, 0f, 0f, 1f))
                                 .start()
                         }
@@ -341,8 +374,8 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                         v.animate()
                             .scaleX(1f)
                             .scaleY(1f)
-                            .setDuration(260L)
-                            .setInterpolator(PathInterpolator(0.16f, 1f, 0.3f, 1f))
+                            .setDuration(220L)
+                            .setInterpolator(PathInterpolator(0.2f, 1f, 0.3f, 1f))
                             .start()
 
                         val isInside = event.x >= 0 && event.x <= v.width &&
@@ -359,8 +392,8 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                         v.animate()
                             .scaleX(1f)
                             .scaleY(1f)
-                            .setDuration(220L)
-                            .setInterpolator(PathInterpolator(0.16f, 1f, 0.3f, 1f))
+                            .setDuration(200L)
+                            .setInterpolator(PathInterpolator(0.2f, 1f, 0.3f, 1f))
                             .start()
                         true
                     }
@@ -727,7 +760,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         val isOriginal = currentProfile == Buds2ProAudioProfile.ORIGINAL_SOUND
         val effectiveDspActive = isDspActive && connected && isOriginal
 
-        applyLayoutTransition(connected)
+        applyFluidMotion(connected)
 
         if (isOriginal && connected) {
             btnMasterToggle.alpha = 1.0f
@@ -740,7 +773,9 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                 btnMasterToggle.setTextColor(Color.parseColor("#FFFFFF"))
             }
         } else {
-            btnMasterToggle.alpha = if (isOriginal) 0.65f else 0.38f
+            if (connected) {
+                btnMasterToggle.alpha = if (isOriginal) 0.65f else 0.38f
+            }
             btnMasterToggle.text = "[ BYPASSED ]"
             btnMasterToggle.setTextColor(Color.parseColor("#888888"))
             visualizer.setDspActive(false)
