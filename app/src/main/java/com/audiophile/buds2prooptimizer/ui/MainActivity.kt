@@ -15,6 +15,7 @@ import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.Rect
 import android.media.AudioAttributes
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
@@ -24,6 +25,7 @@ import android.media.AudioPlaybackConfiguration
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.MotionEvent
 import android.view.View
 import android.view.animation.PathInterpolator
 import android.widget.Button
@@ -35,8 +37,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
-import androidx.transition.AutoTransition
+import androidx.transition.ChangeBounds
+import androidx.transition.Fade
 import androidx.transition.TransitionManager
+import androidx.transition.TransitionSet
 import com.audiophile.buds2prooptimizer.R
 import com.audiophile.buds2prooptimizer.dsp.AudioDspService
 import com.audiophile.buds2prooptimizer.dsp.Buds2ProAudioProfile
@@ -267,9 +271,16 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
 
         val rootLayout = findViewById<ConstraintLayout>(R.id.rootLayout) ?: return
         if (!isInitial) {
-            val transition = AutoTransition().apply {
-                duration = 380L
-                interpolator = PathInterpolator(0.25f, 0.1f, 0.25f, 1f)
+            val transition = TransitionSet().apply {
+                ordering = TransitionSet.ORDERING_TOGETHER
+                addTransition(ChangeBounds().apply {
+                    duration = 540L
+                    interpolator = PathInterpolator(0.16f, 1f, 0.3f, 1f)
+                })
+                addTransition(Fade().apply {
+                    duration = 400L
+                    interpolator = PathInterpolator(0.2f, 0f, 0f, 1f)
+                })
             }
             TransitionManager.beginDelayedTransition(rootLayout, transition)
         }
@@ -288,12 +299,73 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         val cbSound = findViewById<CheckBox>(R.id.cbSound)
 
         fun bindInteractiveButton(view: View, onClickAction: () -> Unit) {
-            view.setOnClickListener {
-                view.animate().scaleX(0.94f).scaleY(0.94f).setDuration(60).withEndAction {
-                    view.animate().scaleX(1f).scaleY(1f).setDuration(120)
-                        .setInterpolator(android.view.animation.OvershootInterpolator()).start()
-                }.start()
-                onClickAction()
+            var isPressedDown = false
+
+            view.setOnTouchListener { v, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        isPressedDown = true
+                        v.animate()
+                            .scaleX(0.955f)
+                            .scaleY(0.955f)
+                            .setDuration(120L)
+                            .setInterpolator(PathInterpolator(0.2f, 0f, 0f, 1f))
+                            .start()
+                        true
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        val isInside = event.x >= 0 && event.x <= v.width &&
+                                       event.y >= 0 && event.y <= v.height
+                        if (!isInside && isPressedDown) {
+                            isPressedDown = false
+                            v.animate()
+                                .scaleX(1f)
+                                .scaleY(1f)
+                                .setDuration(240L)
+                                .setInterpolator(PathInterpolator(0.16f, 1f, 0.3f, 1f))
+                                .start()
+                        } else if (isInside && !isPressedDown) {
+                            isPressedDown = true
+                            v.animate()
+                                .scaleX(0.955f)
+                                .scaleY(0.955f)
+                                .setDuration(120L)
+                                .setInterpolator(PathInterpolator(0.2f, 0f, 0f, 1f))
+                                .start()
+                        }
+                        true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        val wasPressed = isPressedDown
+                        isPressedDown = false
+                        v.animate()
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .setDuration(260L)
+                            .setInterpolator(PathInterpolator(0.16f, 1f, 0.3f, 1f))
+                            .start()
+
+                        val isInside = event.x >= 0 && event.x <= v.width &&
+                                       event.y >= 0 && event.y <= v.height
+                        if (wasPressed && isInside) {
+                            v.post {
+                                onClickAction()
+                            }
+                        }
+                        true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        isPressedDown = false
+                        v.animate()
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .setDuration(220L)
+                            .setInterpolator(PathInterpolator(0.16f, 1f, 0.3f, 1f))
+                            .start()
+                        true
+                    }
+                    else -> false
+                }
             }
         }
 
