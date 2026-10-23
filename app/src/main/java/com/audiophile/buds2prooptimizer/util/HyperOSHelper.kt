@@ -86,7 +86,6 @@ object HyperOSHelper {
             else -> "none"
         }
 
-        val centerSuccess = invokeAudioEffectCenter(context, normalizedEffect)
         var settingsSuccess = false
         var audioFxSuccess = false
 
@@ -113,7 +112,7 @@ object HyperOSHelper {
         } catch (e: Exception) {
             Log.w(TAG, "Unable to update HyperOS audio effect: ${e.message}")
         }
-        return centerSuccess || settingsSuccess || audioFxSuccess
+        return settingsSuccess || audioFxSuccess
     }
 
     /**
