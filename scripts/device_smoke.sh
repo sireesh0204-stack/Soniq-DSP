@@ -96,3 +96,4 @@ if [[ "$BUG_001_RESULT" == "FAIL" || "$BUG_002_RESULT" == "FAIL" || "$BUG_003_RE
     exit 1
 fi
 exit 0
+

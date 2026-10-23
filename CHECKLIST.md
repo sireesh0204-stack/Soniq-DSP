@@ -79,3 +79,4 @@ This checklist contains **14 concise, sequential manual verification steps** to 
 ## Pass/Fail Gate
 - If **all 14 steps pass**: Release/commit is certified clean.
 - If **any step fails**: Log bug reproduction in `BUGS.md`, identify root cause, and run `verify.ps1` before committing.
+

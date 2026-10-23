@@ -70,3 +70,4 @@ else
     echo "VERIFICATION SUCCESSFUL: All 6 bug guards verified green."
     exit 0
 fi
+

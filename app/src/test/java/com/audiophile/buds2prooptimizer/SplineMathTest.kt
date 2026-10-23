@@ -66,3 +66,4 @@ class SplineMathTest {
         assertEquals(16.6667f, cp2, 0.001f)
     }
 }
+

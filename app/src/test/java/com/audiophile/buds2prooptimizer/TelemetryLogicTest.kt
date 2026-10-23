@@ -47,3 +47,4 @@ class TelemetryLogicTest {
         assertEquals("HI-RES BT", AudioTelemetryUtils.resolveCodecName(99, "Generic Headset"))
     }
 }
+
