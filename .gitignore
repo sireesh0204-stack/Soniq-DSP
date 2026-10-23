@@ -4,6 +4,8 @@
 /.idea/
 .DS_Store
 /build
+app/build/
+*.mp4
 /captures
 .externalNativeBuild
 .cxx

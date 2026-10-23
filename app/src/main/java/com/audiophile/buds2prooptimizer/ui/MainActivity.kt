@@ -290,21 +290,6 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             soundEngine.setEnabled(isChecked)
             cbSound.text = if (isChecked) "SOUND: ON" else "SOUND: OFF"
         }
-
-        val ivWatermark = findViewById<ImageView>(R.id.ivAszsdWatermark)
-        ivWatermark?.let { watermark ->
-            android.animation.ValueAnimator.ofFloat(0.55f, 0.98f).apply {
-                duration = 2200
-                repeatMode = android.animation.ValueAnimator.REVERSE
-                repeatCount = android.animation.ValueAnimator.INFINITE
-                interpolator = android.view.animation.AccelerateDecelerateInterpolator()
-                addUpdateListener { animator ->
-                    val value = (animator.animatedValue as? Float) ?: 0.75f
-                    watermark.alpha = value
-                }
-                start()
-            }
-        }
     }
 
     private fun isHeadsetConnected(): Boolean {
@@ -576,8 +561,14 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             }
         }
 
+        val targetHyperOsEffect = if (profile == Buds2ProAudioProfile.ORIGINAL_SOUND) {
+            "none"
+        } else {
+            profile.hyperOsEffect
+        }
+
         runCatching {
-            HyperOSHelper.setHyperOsEffect(this, profile.hyperOsEffect)
+            HyperOSHelper.setHyperOsEffect(this, targetHyperOsEffect)
         }
 
         runCatching {

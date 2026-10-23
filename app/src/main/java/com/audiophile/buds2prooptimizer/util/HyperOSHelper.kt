@@ -141,20 +141,20 @@ object HyperOSHelper {
 
             when (effect) {
                 "dolby" -> {
-                    // Deactivate misound first, then activate dolby on the AudioEffectCenter instance
+                    runCatching { setEffectActiveMethod.invoke(centerInstance, "none", false) }
                     runCatching { setEffectActiveMethod.invoke(centerInstance, "misound", false) }
                     setEffectActiveMethod.invoke(centerInstance, "dolby", true)
                 }
                 "misound" -> {
-                    // Deactivate dolby first, then activate misound on the AudioEffectCenter instance
+                    runCatching { setEffectActiveMethod.invoke(centerInstance, "none", false) }
                     runCatching { setEffectActiveMethod.invoke(centerInstance, "dolby", false) }
                     setEffectActiveMethod.invoke(centerInstance, "misound", true)
                 }
                 else -> {
-                    // "none" (Original Sound): activate "none" and explicitly deactivate dolby & misound
+                    // "none" (Original Sound): explicitly deactivate dolby & misound and set "none" active
                     runCatching { setEffectActiveMethod.invoke(centerInstance, "dolby", false) }
                     runCatching { setEffectActiveMethod.invoke(centerInstance, "misound", false) }
-                    setEffectActiveMethod.invoke(centerInstance, "none", true)
+                    runCatching { setEffectActiveMethod.invoke(centerInstance, "none", true) }
                 }
             }
             true
@@ -215,47 +215,72 @@ object HyperOSHelper {
      */
     private fun updateSystemSettings(context: Context, effect: String): Boolean {
         val resolver = context.contentResolver
-        val isNone = if (effect == "none") 1 else 0
-        val enableDolby = (effect == "dolby")
-        val enableMiSound = (effect == "misound")
-        val dolbyInt = if (enableDolby) 1 else 0
-        val miSoundInt = if (enableMiSound) 1 else 0
+        val normalizedEffect = when (effect.lowercase()) {
+            "dolby" -> "dolby"
+            "misound" -> "misound"
+            else -> "none"
+        }
+        val isNone = if (normalizedEffect == "none") 1 else 0
+        val dolbyInt = if (normalizedEffect == "dolby") 1 else 0
+        val miSoundInt = if (normalizedEffect == "misound") 1 else 0
 
-        val putImpl = runCatching {
-            Settings.Global.putString(resolver, KEY_EFFECT_IMPLEMENTER, effect)
+        // 1. Update Settings.Global keys
+        val putGlobalImpl = runCatching {
+            Settings.Global.putString(resolver, KEY_EFFECT_IMPLEMENTER, normalizedEffect)
         }.getOrDefault(false)
-
-        val putNone = runCatching {
+        val putGlobalNone = runCatching {
             Settings.Global.putInt(resolver, KEY_LAST_SELECT_EFFECT_NONE, isNone)
         }.getOrDefault(false)
-
-        // Synchronize Settings.System & Settings.Global keys read by HeadsetSettingsActivity
-        runCatching { Settings.System.putInt(resolver, KEY_DOLBY_EFFECT_SWITCH, dolbyInt) }
-        runCatching { Settings.System.putInt(resolver, KEY_MISOUND_STATE, miSoundInt) }
-        runCatching { Settings.System.putString(resolver, KEY_EFFECT_IMPLEMENTER, effect) }
-        runCatching { Settings.System.putInt(resolver, KEY_LAST_SELECT_EFFECT_NONE, isNone) }
         runCatching { Settings.Global.putInt(resolver, KEY_DOLBY_EFFECT_SWITCH, dolbyInt) }
         runCatching { Settings.Global.putInt(resolver, KEY_MISOUND_STATE, miSoundInt) }
 
-        // Notify ContentObservers for all updated URIs
+        // 2. Update Settings.System keys (used by HyperOS speaker / headset routing profiles)
+        val putSystemImpl = runCatching {
+            Settings.System.putString(resolver, KEY_EFFECT_IMPLEMENTER, normalizedEffect)
+        }.getOrDefault(false)
+        val putSystemNone = runCatching {
+            Settings.System.putInt(resolver, KEY_LAST_SELECT_EFFECT_NONE, isNone)
+        }.getOrDefault(false)
+        runCatching { Settings.System.putInt(resolver, KEY_DOLBY_EFFECT_SWITCH, dolbyInt) }
+        runCatching { Settings.System.putInt(resolver, KEY_MISOUND_STATE, miSoundInt) }
+
+        // 3. Notify ContentObservers across both Global and System tables
         runCatching {
             resolver.notifyChange(Settings.Global.getUriFor(KEY_EFFECT_IMPLEMENTER), null)
             resolver.notifyChange(Settings.Global.getUriFor(KEY_LAST_SELECT_EFFECT_NONE), null)
             resolver.notifyChange(Settings.Global.getUriFor(KEY_DOLBY_EFFECT_SWITCH), null)
             resolver.notifyChange(Settings.Global.getUriFor(KEY_MISOUND_STATE), null)
-            resolver.notifyChange(Settings.System.getUriFor(KEY_DOLBY_EFFECT_SWITCH), null)
-            resolver.notifyChange(Settings.System.getUriFor(KEY_MISOUND_STATE), null)
             resolver.notifyChange(Settings.System.getUriFor(KEY_EFFECT_IMPLEMENTER), null)
             resolver.notifyChange(Settings.System.getUriFor(KEY_LAST_SELECT_EFFECT_NONE), null)
+            resolver.notifyChange(Settings.System.getUriFor(KEY_DOLBY_EFFECT_SWITCH), null)
+            resolver.notifyChange(Settings.System.getUriFor(KEY_MISOUND_STATE), null)
+        }
+
+        // 4. Broadcast state synchronization directly to com.miui.misound
+        runCatching {
+            val dolbyIntent = Intent(ACTION_SYSTEM_UI_DOLBY_EFFECT_SWITCH).apply {
+                setPackage("com.miui.misound")
+                putExtra("flag", dolbyInt == 1)
+                putExtra("state", dolbyInt)
+            }
+            context.sendBroadcast(dolbyIntent)
+
+            val refreshIntent = Intent(ACTION_AUDIO_EFFECT_REFRESH).apply {
+                setPackage("com.miui.misound")
+                putExtra(KEY_EFFECT_IMPLEMENTER, normalizedEffect)
+                putExtra(KEY_LAST_SELECT_EFFECT_NONE, isNone)
+            }
+            context.sendBroadcast(refreshIntent)
         }
 
         Log.d(
             TAG,
-            "updateSystemSettings($effect) -> $KEY_EFFECT_IMPLEMENTER=$effect ($putImpl), " +
-                "$KEY_LAST_SELECT_EFFECT_NONE=$isNone ($putNone), " +
+            "updateSystemSettings($normalizedEffect) -> " +
+                "$KEY_EFFECT_IMPLEMENTER=$normalizedEffect (global=$putGlobalImpl, system=$putSystemImpl), " +
+                "$KEY_LAST_SELECT_EFFECT_NONE=$isNone (global=$putGlobalNone, system=$putSystemNone), " +
                 "$KEY_DOLBY_EFFECT_SWITCH=$dolbyInt, $KEY_MISOUND_STATE=$miSoundInt"
         )
-        return putImpl && putNone
+        return (putGlobalImpl && putGlobalNone) || (putSystemImpl && putSystemNone)
     }
 
     /**

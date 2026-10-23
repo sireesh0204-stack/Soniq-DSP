@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="84dp"
     android:height="25dp"
     android:viewportWidth="400"
     android:viewportHeight="120">
 
-    <!-- 1. Ambient Frosted Glass Edge Glow (outer specular rim) -->
+    <!-- ASZSD Continuous Wireframe Monogram: Dull stealth matte grey -->
     <path
         android:pathData="
             M 90,25 
@@ -19,52 +18,8 @@
             L 255,25 
             L 330,25 
             C 370,25 370,95 330,95"
+        android:strokeColor="#3A4354"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:strokeWidth="11">
-        <aapt:attr name="android:strokeColor">
-            <gradient
-                android:startX="50"
-                android:startY="25"
-                android:endX="370"
-                android:endY="95"
-                android:type="linear">
-                <item android:offset="0.0" android:color="#3500F0FF" />
-                <item android:offset="0.5" android:color="#20FFFFFF" />
-                <item android:offset="1.0" android:color="#35E5B869" />
-            </gradient>
-        </aapt:attr>
-    </path>
-
-    <!-- 2. Core Liquid Glass Titanium Grey with Apple iOS Specular Sheen -->
-    <path
-        android:pathData="
-            M 90,25 
-            C 50,25 50,95 90,95 
-            L 165,95 
-            L 105,25 
-            L 240,25 
-            L 180,95 
-            L 315,95 
-            L 255,25 
-            L 330,25 
-            C 370,25 370,95 330,95"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="6.5">
-        <aapt:attr name="android:strokeColor">
-            <gradient
-                android:startX="50"
-                android:startY="25"
-                android:endX="370"
-                android:endY="95"
-                android:type="linear">
-                <item android:offset="0.0" android:color="#E2E8F0" />
-                <item android:offset="0.25" android:color="#7A8797" />
-                <item android:offset="0.50" android:color="#FFFFFF" />
-                <item android:offset="0.75" android:color="#606C7E" />
-                <item android:offset="1.0" android:color="#CAD5E2" />
-            </gradient>
-        </aapt:attr>
-    </path>
+        android:strokeWidth="6.5" />
 </vector>

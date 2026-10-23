@@ -195,7 +195,7 @@
         android:layout_width="84dp"
         android:layout_height="25dp"
         android:layout_marginBottom="14dp"
-        android:alpha="0.85"
+        android:alpha="0.45"
         android:contentDescription="ASZSD Monogram Emblem"
         android:src="@drawable/ic_aszsd_monogram"
         app:layout_constraintBottom_toBottomOf="parent"
