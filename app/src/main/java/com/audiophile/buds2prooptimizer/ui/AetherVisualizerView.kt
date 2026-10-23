@@ -93,12 +93,16 @@ class AetherVisualizerView @JvmOverloads constructor(
                 // Clamp deltaSec to prevent jumps after pause or drop frame
                 val safeDelta = deltaSec.coerceIn(0.001f, 0.05f)
 
-                // Smooth 3.2 rad/s progression independent of 60Hz or 120Hz display refresh rate
-                phase = (phase + safeDelta * 3.2f) % (Math.PI.toFloat() * 2f)
+                // Continuous frame-rate independent progression without modulo discontinuities
+                phase += safeDelta * 2.6f
+                if (phase > 100_000f) {
+                    phase = 0f
+                }
 
                 val target = if (isDspActive) targetAmplitude else 0f
-                val smoothSpeed = safeDelta * 8f
-                currentAmplitude += (target - currentAmplitude) * smoothSpeed.coerceIn(0.05f, 0.35f)
+                // True exponential damping: 100% smooth across 60Hz, 90Hz, and 120Hz
+                val factor = (1.0 - Math.exp(-safeDelta * 5.5)).toFloat().coerceIn(0.01f, 0.4f)
+                currentAmplitude += (target - currentAmplitude) * factor
 
                 invalidate()
 
@@ -119,24 +123,34 @@ class AetherVisualizerView @JvmOverloads constructor(
         if (widthF <= 0) return
 
         wavePath.reset()
-        val step = 6f
+        val step = 8f
         var x = 0f
+        var prevX = 0f
+        var prevY = centerY
+
         var isFirst = true
 
         while (x <= widthF) {
             val normalizedX = x / widthF
-            val yOffset = sin(normalizedX * Math.PI * 4 + phase) * currentAmplitude +
-                          sin(normalizedX * Math.PI * 8 - phase * 1.4) * (currentAmplitude * 0.45f)
+            val yOffset = sin(normalizedX * Math.PI * 3.8 + phase) * currentAmplitude +
+                          sin(normalizedX * Math.PI * 7.2 - phase * 1.3) * (currentAmplitude * 0.38f)
             val currentY = centerY + yOffset.toFloat()
 
             if (isFirst) {
                 wavePath.moveTo(x, currentY)
+                prevX = x
+                prevY = currentY
                 isFirst = false
             } else {
-                wavePath.lineTo(x, currentY)
+                val midX = (prevX + x) / 2f
+                val midY = (prevY + currentY) / 2f
+                wavePath.quadTo(prevX, prevY, midX, midY)
+                prevX = x
+                prevY = currentY
             }
             x += step
         }
+        wavePath.lineTo(prevX, prevY)
         canvas.drawPath(wavePath, wavePaint)
 
         drawHarmanLogoBottomRight(canvas, widthF, height.toFloat())

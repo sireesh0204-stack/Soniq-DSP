@@ -8,12 +8,12 @@
         "source": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-main-33:\\xml\\appwidget_2x2_info.xml"
     },
     {
-        "merged": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-merged_res-31:\\drawable_bg_cred_button_active.xml.flat",
-        "source": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-main-33:\\drawable\\bg_cred_button_active.xml"
-    },
-    {
         "merged": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-merged_res-31:\\drawable_bg_cred_button_3d.xml.flat",
         "source": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-main-33:\\drawable\\bg_cred_button_3d.xml"
+    },
+    {
+        "merged": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-merged_res-31:\\drawable_bg_cred_button_active.xml.flat",
+        "source": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-main-33:\\drawable\\bg_cred_button_active.xml"
     },
     {
         "merged": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-merged_res-31:\\drawable_bg_glass_card.xml.flat",
@@ -50,10 +50,6 @@
     {
         "merged": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-merged_res-31:\\xml_appwidget_2x1_info.xml.flat",
         "source": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-main-33:\\xml\\appwidget_2x1_info.xml"
-    },
-    {
-        "merged": "com.audiophile.buds2prooptimizer.app-merged_res-31:/layout_activity_main.xml.flat",
-        "source": "com.audiophile.buds2prooptimizer.app-main-33:/layout/activity_main.xml"
     },
     {
         "merged": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-merged_res-31:\\drawable_ic_tile_dolby.xml.flat",
@@ -130,6 +126,10 @@
     {
         "merged": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-merged_res-31:\\drawable_ic_aether_profile.xml.flat",
         "source": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-main-33:\\drawable\\ic_aether_profile.xml"
+    },
+    {
+        "merged": "com.audiophile.buds2prooptimizer.app-merged_res-31:/drawable_ic_aszsd_monogram.xml.flat",
+        "source": "com.audiophile.buds2prooptimizer.app-main-33:/drawable/ic_aszsd_monogram.xml"
     },
     {
         "merged": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-merged_res-31:\\drawable_ic_aether_launcher_foreground.xml.flat",
