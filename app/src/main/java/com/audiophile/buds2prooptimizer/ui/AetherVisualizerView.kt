@@ -80,80 +80,92 @@ class AetherVisualizerView @JvmOverloads constructor(
 
     private fun startAnimation() {
         animator?.cancel()
+        animator = null
         lastFrameTimeNanos = System.nanoTime()
-        animator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 1000
-            repeatCount = ValueAnimator.INFINITE
-            interpolator = LinearInterpolator()
-            addUpdateListener {
-                val now = System.nanoTime()
-                val deltaSec = ((now - lastFrameTimeNanos).coerceAtLeast(0L) / 1_000_000_000.0).toFloat()
-                lastFrameTimeNanos = now
-
-                // Clamp deltaSec to prevent jumps after pause or drop frame
-                val safeDelta = deltaSec.coerceIn(0.001f, 0.05f)
-
-                // Continuous frame-rate independent progression without modulo discontinuities
-                phase += safeDelta * 2.6f
-                if (phase > 100_000f) {
-                    phase = 0f
-                }
-
-                val target = if (isDspActive) targetAmplitude else 0f
-                // True exponential damping: 100% smooth across 60Hz, 90Hz, and 120Hz
-                val factor = (1.0 - Math.exp(-safeDelta * 5.5)).toFloat().coerceIn(0.01f, 0.4f)
-                currentAmplitude += (target - currentAmplitude) * factor
-
-                invalidate()
-
-                if (!isDspActive && currentAmplitude < 0.2f) {
-                    currentAmplitude = 0f
-                    invalidate()
-                    cancel()
-                }
-            }
-            start()
-        }
+        postInvalidateOnAnimation()
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val centerY = height / 2f
         val widthF = width.toFloat()
-        if (widthF <= 0) return
+        if (widthF <= 0f) return
 
-        wavePath.reset()
-        val step = 8f
-        var x = 0f
-        var prevX = 0f
-        var prevY = centerY
-
-        var isFirst = true
-
-        while (x <= widthF) {
-            val normalizedX = x / widthF
-            val yOffset = sin(normalizedX * (2 * Math.PI) + phase) * currentAmplitude * 0.75f +
-                          sin(normalizedX * (4 * Math.PI) - phase * 0.8f) * (currentAmplitude * 0.25f)
-            val currentY = centerY + yOffset.toFloat()
-
-            if (isFirst) {
-                wavePath.moveTo(x, currentY)
-                prevX = x
-                prevY = currentY
-                isFirst = false
-            } else {
-                val midX = (prevX + x) / 2f
-                val midY = (prevY + currentY) / 2f
-                wavePath.quadTo(prevX, prevY, midX, midY)
-                prevX = x
-                prevY = currentY
-            }
-            x += step
+        // Hardware VSYNC-aligned delta computation for locked 120Hz fluidity
+        val now = System.nanoTime()
+        val rawDeltaSec = if (lastFrameTimeNanos == 0L) {
+            1f / 120f
+        } else {
+            ((now - lastFrameTimeNanos).coerceAtLeast(0L) / 1_000_000_000.0).toFloat()
         }
-        wavePath.lineTo(prevX, prevY)
-        canvas.drawPath(wavePath, wavePaint)
+        lastFrameTimeNanos = now
 
+        val safeDelta = rawDeltaSec.coerceIn(0.001f, 0.033f)
+
+        val target = if (isDspActive) targetAmplitude else 0f
+        val smoothing = (1.0 - Math.exp(-safeDelta * 6.5)).toFloat().coerceIn(0.005f, 0.35f)
+        currentAmplitude += (target - currentAmplitude) * smoothing
+
+        if (isDspActive || currentAmplitude > 0.08f) {
+            phase += safeDelta * 2.8f
+            if (phase > 62831.85f) { // 20,000 * PI seamless wrap
+                phase -= 62831.85f
+            }
+        } else {
+            currentAmplitude = 0f
+        }
+
+        // High-density Catmull-Rom to Cubic Bezier liquid ribbon spline
+        wavePath.reset()
+        val segments = 96
+        val dx = widthF / segments
+        val twoPi = (2.0 * Math.PI).toFloat()
+        val fourPi = (4.0 * Math.PI).toFloat()
+
+        fun sampleWaveY(xPos: Float): Float {
+            val normX = (xPos / widthF).coerceIn(0f, 1f)
+            // Subtle edge envelope taper for an organic acoustic ribbon look
+            val envelope = sin(normX * Math.PI).toFloat() * 0.15f + 0.85f
+            val primary = sin(normX * twoPi + phase) * 0.72f
+            val harmonic = sin(normX * fourPi - phase * 0.85f) * 0.28f
+            return centerY + (primary + harmonic) * currentAmplitude * envelope
+        }
+
+        var x0 = 0f
+        var y0 = sampleWaveY(0f)
+        var x1 = 0f
+        var y1 = y0
+        var x2 = dx
+        var y2 = sampleWaveY(x2)
+
+        wavePath.moveTo(x1, y1)
+
+        for (i in 1..segments) {
+            val x3 = if (i < segments) (i + 1) * dx else widthF
+            val y3 = sampleWaveY(x3)
+
+            // Catmull-Rom tangents converted to cubic Bezier control points
+            val cp1x = x1 + (x2 - x0) / 6f
+            val cp1y = y1 + (y2 - y0) / 6f
+            val cp2x = x2 - (x3 - x1) / 6f
+            val cp2y = y2 - (y3 - y1) / 6f
+
+            wavePath.cubicTo(cp1x, cp1y, cp2x, cp2y, x2, y2)
+
+            x0 = x1
+            y0 = y1
+            x1 = x2
+            y1 = y2
+            x2 = x3
+            y2 = y3
+        }
+
+        canvas.drawPath(wavePath, wavePaint)
         drawHarmanLogoBottomRight(canvas, widthF, height.toFloat())
+
+        if (isDspActive || currentAmplitude > 0.08f) {
+            postInvalidateOnAnimation()
+        }
     }
 
     /**

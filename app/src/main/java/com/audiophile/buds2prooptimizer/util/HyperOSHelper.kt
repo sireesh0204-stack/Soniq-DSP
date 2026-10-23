@@ -86,6 +86,7 @@ object HyperOSHelper {
             else -> "none"
         }
 
+        var centerSuccess = false
         var settingsSuccess = false
         var audioFxSuccess = false
 
@@ -95,24 +96,35 @@ object HyperOSHelper {
                 releaseRetainedEffects()
             }
 
-            // 2. Synchronize Settings.Global and Settings.System state tables
+            // 2. Synchronize Settings.Global and Settings.System state tables first
+            // so AudioEffectCenter / com.miui.misound observers read consistent state
             settingsSuccess = updateSystemSettings(context, normalizedEffect)
             Log.d(TAG, "updateSystemSettings($normalizedEffect) -> success=$settingsSuccess")
 
-            // 3. Directly manipulate AudioEffect Session 0 (Dolby DAP & MiSound engines)
+            // 3. Drive HyperOS AudioEffectCenter without passing invalid "none" effect identifier
+            centerSuccess = invokeAudioEffectCenter(context, normalizedEffect)
+            Log.d(TAG, "invokeAudioEffectCenter($normalizedEffect) -> success=$centerSuccess")
+
+            // Re-assert Settings.Global / Settings.System after AudioEffectCenter in case
+            // deactivating dolby/misound caused framework callbacks to clobber implementer keys
+            if (normalizedEffect == "none") {
+                updateSystemSettings(context, "none")
+            }
+
+            // 4. Directly manipulate AudioEffect Session 0 (Dolby DAP & MiSound engines)
             audioFxSuccess = applySessionZeroAudioEffects(normalizedEffect)
             Log.d(TAG, "Direct Session 0 AudioEffect control success: $audioFxSuccess")
 
-            // 4. Apply vendor AudioManager parameters as secondary hint
+            // 5. Apply vendor AudioManager parameters as secondary hint
             applyVendorHalParameters(context, normalizedEffect)
 
-            // 5. Trigger UI & service state re-evaluation in com.miui.misound
+            // 6. Trigger UI & service state re-evaluation in com.miui.misound
             triggerMiSoundStateRefresh(context, normalizedEffect)
 
         } catch (e: Exception) {
             Log.w(TAG, "Unable to update HyperOS audio effect: ${e.message}")
         }
-        return settingsSuccess || audioFxSuccess
+        return centerSuccess || settingsSuccess || audioFxSuccess
     }
 
     /**
@@ -140,20 +152,28 @@ object HyperOSHelper {
 
             when (effect) {
                 "dolby" -> {
-                    runCatching { setEffectActiveMethod.invoke(centerInstance, "none", false) }
                     runCatching { setEffectActiveMethod.invoke(centerInstance, "misound", false) }
                     setEffectActiveMethod.invoke(centerInstance, "dolby", true)
                 }
                 "misound" -> {
-                    runCatching { setEffectActiveMethod.invoke(centerInstance, "none", false) }
                     runCatching { setEffectActiveMethod.invoke(centerInstance, "dolby", false) }
                     setEffectActiveMethod.invoke(centerInstance, "misound", true)
                 }
                 else -> {
-                    // "none" (Original Sound): explicitly deactivate dolby & misound and set "none" active
-                    runCatching { setEffectActiveMethod.invoke(centerInstance, "dolby", false) }
-                    runCatching { setEffectActiveMethod.invoke(centerInstance, "misound", false) }
-                    runCatching { setEffectActiveMethod.invoke(centerInstance, "none", true) }
+                    // "none" (Original Sound): explicitly deactivate both dolby and misound.
+                    // Never invoke setEffectActive("none", ...) as "none" is not a registered
+                    // AudioEffectCenter effect and triggers a SecurityException / IllegalArgumentException.
+                    val dolbyDeactivated = runCatching {
+                        setEffectActiveMethod.invoke(centerInstance, "dolby", false)
+                        true
+                    }.getOrDefault(false)
+
+                    val miSoundDeactivated = runCatching {
+                        setEffectActiveMethod.invoke(centerInstance, "misound", false)
+                        true
+                    }.getOrDefault(false)
+
+                    return dolbyDeactivated || miSoundDeactivated
                 }
             }
             true
