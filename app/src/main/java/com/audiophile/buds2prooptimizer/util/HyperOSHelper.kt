@@ -86,6 +86,7 @@ object HyperOSHelper {
             else -> "none"
         }
 
+        val centerSuccess = invokeAudioEffectCenter(context, normalizedEffect)
         var settingsSuccess = false
         var audioFxSuccess = false
 
@@ -112,7 +113,7 @@ object HyperOSHelper {
         } catch (e: Exception) {
             Log.w(TAG, "Unable to update HyperOS audio effect: ${e.message}")
         }
-        return settingsSuccess || audioFxSuccess
+        return centerSuccess || settingsSuccess || audioFxSuccess
     }
 
     /**
@@ -520,17 +521,13 @@ object HyperOSHelper {
             Log.d(TAG, "Dispatched $action for session 0 to com.miui.misound")
         }
 
-        // 5d. Safe protected broadcast (guarded against SecurityException on non-system UIDs)
-        try {
+        // 5d. Safe protected broadcast (guarded against SecurityException on Android 16 / API 36)
+        runCatching {
             val refreshIntent = Intent(ACTION_AUDIO_EFFECT_REFRESH).apply {
                 setPackage("com.miui.misound")
             }
             context.sendBroadcast(refreshIntent)
             Log.d(TAG, "Dispatched $ACTION_AUDIO_EFFECT_REFRESH broadcast.")
-        } catch (e: SecurityException) {
-            Log.d(TAG, "Protected broadcast $ACTION_AUDIO_EFFECT_REFRESH skipped (requires system signature).")
-        } catch (e: Exception) {
-            Log.w(TAG, "Broadcast $ACTION_AUDIO_EFFECT_REFRESH failed: ${e.message}")
         }
     }
 

@@ -132,8 +132,8 @@ class AetherVisualizerView @JvmOverloads constructor(
 
         while (x <= widthF) {
             val normalizedX = x / widthF
-            val yOffset = sin(normalizedX * Math.PI * 3.8 + phase) * currentAmplitude +
-                          sin(normalizedX * Math.PI * 7.2 - phase * 1.3) * (currentAmplitude * 0.38f)
+            val yOffset = sin(normalizedX * (2 * Math.PI) + phase) * currentAmplitude * 0.75f +
+                          sin(normalizedX * (4 * Math.PI) - phase * 0.8f) * (currentAmplitude * 0.25f)
             val currentY = centerY + yOffset.toFloat()
 
             if (isFirst) {

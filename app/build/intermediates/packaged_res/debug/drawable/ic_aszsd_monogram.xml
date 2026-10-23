@@ -1,71 +1,70 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="120dp"
-    android:height="36dp"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="84dp"
+    android:height="25dp"
     android:viewportWidth="400"
     android:viewportHeight="120">
 
-    <!-- 1. 'a' (Anasuri) Opening Arc -->
+    <!-- 1. Ambient Frosted Glass Edge Glow (outer specular rim) -->
     <path
-        android:pathData="M 60,25 C 24,25 24,95 60,95"
-        android:strokeColor="#E5B869"
+        android:pathData="
+            M 90,25 
+            C 50,25 50,95 90,95 
+            L 165,95 
+            L 105,25 
+            L 240,25 
+            L 180,95 
+            L 315,95 
+            L 255,25 
+            L 330,25 
+            C 370,25 370,95 330,95"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:strokeWidth="7" />
+        android:strokeWidth="11">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="50"
+                android:startY="25"
+                android:endX="370"
+                android:endY="95"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#3500F0FF" />
+                <item android:offset="0.5" android:color="#20FFFFFF" />
+                <item android:offset="1.0" android:color="#35E5B869" />
+            </gradient>
+        </aapt:attr>
+    </path>
 
-    <!-- 2. 'S' (Sireesh): Top rail + '\' diagonal + bottom rail -->
+    <!-- 2. Core Liquid Glass Titanium Grey with Apple iOS Specular Sheen -->
     <path
-        android:pathData="M 90,25 L 145,25"
-        android:strokeColor="#E5B869"
+        android:pathData="
+            M 90,25 
+            C 50,25 50,95 90,95 
+            L 165,95 
+            L 105,25 
+            L 240,25 
+            L 180,95 
+            L 315,95 
+            L 255,25 
+            L 330,25 
+            C 370,25 370,95 330,95"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:strokeWidth="7" />
-    <path
-        android:pathData="M 90,25 L 145,95"
-        android:strokeColor="#E5B869"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="7" />
-    <path
-        android:pathData="M 90,95 L 145,95"
-        android:strokeColor="#E5B869"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="7" />
-
-    <!-- 3. 'Z' (Zoro): '/' diagonal connecting bottom to top -->
-    <path
-        android:pathData="M 145,95 L 205,25"
-        android:strokeColor="#E5B869"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="7" />
-    <path
-        android:pathData="M 145,25 L 205,25"
-        android:strokeColor="#E5B869"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="7" />
-
-    <!-- 4. 'S' (Sweety): '\' diagonal from top rail to bottom -->
-    <path
-        android:pathData="M 205,25 L 265,95"
-        android:strokeColor="#E5B869"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="7" />
-    <path
-        android:pathData="M 205,95 L 265,95"
-        android:strokeColor="#E5B869"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="7" />
-
-    <!-- 5. 'D' (Dhanvika): Top & bottom rails closing into rounded arc -->
-    <path
-        android:pathData="M 265,25 L 320,25 C 360,25 360,95 320,95 L 265,95"
-        android:strokeColor="#E5B869"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="7" />
+        android:strokeWidth="6.5">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="50"
+                android:startY="25"
+                android:endX="370"
+                android:endY="95"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#E2E8F0" />
+                <item android:offset="0.25" android:color="#7A8797" />
+                <item android:offset="0.50" android:color="#FFFFFF" />
+                <item android:offset="0.75" android:color="#606C7E" />
+                <item android:offset="1.0" android:color="#CAD5E2" />
+            </gradient>
+        </aapt:attr>
+    </path>
 </vector>

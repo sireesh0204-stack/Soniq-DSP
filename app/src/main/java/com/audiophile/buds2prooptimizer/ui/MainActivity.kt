@@ -1,6 +1,5 @@
 package com.audiophile.buds2prooptimizer.ui
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothA2dp
 import android.bluetooth.BluetoothAdapter
@@ -14,18 +13,21 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
-import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.media.AudioAttributes
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
+import android.media.AudioFormat
 import android.media.AudioManager
+import android.media.AudioPlaybackConfiguration
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
 import android.widget.Button
 import android.widget.CheckBox
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -51,6 +53,13 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     private var isDspActive = false
     private var currentProfile = Buds2ProAudioProfile.ORIGINAL_SOUND
 
+    @Volatile
+    private var isTrackPlaying = false
+    @Volatile
+    private var activeTrackSampleRate = 0
+    @Volatile
+    private var activeTrackBitDepth = "24-BIT"
+
     private val a2dpProfileListener = object : BluetoothProfile.ServiceListener {
         override fun onServiceConnected(profile: Int, proxy: BluetoothProfile?) {
             if (profile == BluetoothProfile.A2DP) {
@@ -67,13 +76,32 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         }
     }
 
+    private val audioPlaybackCallback = object : AudioManager.AudioPlaybackCallback() {
+        override fun onPlaybackConfigChanged(configs: List<AudioPlaybackConfiguration>) {
+            super.onPlaybackConfigChanged(configs)
+            evaluatePlaybackConfigs(configs)
+            runOnUiThread {
+                updateCodecTelemetry()
+            }
+        }
+    }
+
     private val audioDeviceCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>?) {
-            updateCodecTelemetry()
+            runOnUiThread {
+                loadState()
+                updateCodecTelemetry()
+            }
         }
 
         override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) {
-            updateCodecTelemetry()
+            runOnUiThread {
+                if (!isHeadsetConnected() && isDspActive) {
+                    forceDisableDsp()
+                }
+                loadState()
+                updateCodecTelemetry()
+            }
         }
     }
 
@@ -90,6 +118,9 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                     cachedCodecConfig = cfg
                 }
             }
+            if (!isHeadsetConnected() && isDspActive) {
+                forceDisableDsp()
+            }
             updateCodecTelemetry()
         }
     }
@@ -104,6 +135,11 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         bluetoothAdapter = (getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
 
         initBluetoothProxy()
+        audioManager?.let { manager ->
+            manager.registerAudioPlaybackCallback(audioPlaybackCallback, null)
+            evaluatePlaybackConfigs(manager.activePlaybackConfigurations)
+        }
+
         setupViews()
         loadState()
         handleIntentProfile(intent)
@@ -138,6 +174,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .registerOnSharedPreferenceChangeListener(this)
         registerTelemetryListeners()
+        audioManager?.let { evaluatePlaybackConfigs(it.activePlaybackConfigurations) }
         loadState()
         updateCodecTelemetry()
     }
@@ -201,6 +238,12 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         }
 
         bindInteractiveButton(btnMasterToggle) {
+            if (!isHeadsetConnected()) {
+                hapticFeedback.performClick()
+                soundEngine.playMechanicalClick()
+                Toast.makeText(this, "Connect earbuds or DAC to engage Harman DSP", Toast.LENGTH_SHORT).show()
+                return@bindInteractiveButton
+            }
             if (currentProfile != Buds2ProAudioProfile.ORIGINAL_SOUND) {
                 hapticFeedback.performClick()
                 soundEngine.playMechanicalClick()
@@ -222,12 +265,6 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         profileButtons.forEachIndexed { index, button ->
             bindInteractiveButton(button) {
                 val targetProfile = profiles[index]
-                if (targetProfile == Buds2ProAudioProfile.ORIGINAL_SOUND && !isHeadsetConnected()) {
-                    hapticFeedback.performClick()
-                    soundEngine.playMechanicalClick()
-                    Toast.makeText(this, "Connect Galaxy Buds or IEMs to access Original Bit-Perfect mode", Toast.LENGTH_SHORT).show()
-                    return@bindInteractiveButton
-                }
                 hapticFeedback.performClick()
                 soundEngine.playMechanicalClick()
                 setProfile(targetProfile)
@@ -253,6 +290,21 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             soundEngine.setEnabled(isChecked)
             cbSound.text = if (isChecked) "SOUND: ON" else "SOUND: OFF"
         }
+
+        val ivWatermark = findViewById<ImageView>(R.id.ivAszsdWatermark)
+        ivWatermark?.let { watermark ->
+            android.animation.ValueAnimator.ofFloat(0.55f, 0.98f).apply {
+                duration = 2200
+                repeatMode = android.animation.ValueAnimator.REVERSE
+                repeatCount = android.animation.ValueAnimator.INFINITE
+                interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                addUpdateListener { animator ->
+                    val value = (animator.animatedValue as? Float) ?: 0.75f
+                    watermark.alpha = value
+                }
+                start()
+            }
+        }
     }
 
     private fun isHeadsetConnected(): Boolean {
@@ -273,9 +325,56 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         }
     }
 
+    private fun evaluatePlaybackConfigs(configs: List<AudioPlaybackConfiguration>) {
+        val activeMediaConfig = configs.firstOrNull { config ->
+            val isMedia = config.audioAttributes?.usage == AudioAttributes.USAGE_MEDIA
+            val active = runCatching {
+                val isActiveMethod = AudioPlaybackConfiguration::class.java.getMethod("isActive")
+                isActiveMethod.invoke(config) as? Boolean ?: false
+            }.getOrDefault(audioManager?.isMusicActive == true)
+            isMedia && active
+        } ?: configs.firstOrNull { config ->
+            config.audioAttributes?.usage == AudioAttributes.USAGE_MEDIA && (audioManager?.isMusicActive == true)
+        }
+
+        if (activeMediaConfig != null) {
+            isTrackPlaying = true
+            val format: AudioFormat? = runCatching {
+                val getFormatMethod = AudioPlaybackConfiguration::class.java.getMethod("getFormat")
+                getFormatMethod.invoke(activeMediaConfig) as? AudioFormat
+            }.getOrNull()
+
+            activeTrackSampleRate = format?.sampleRate?.takeIf { it > 0 } ?: 48000
+            activeTrackBitDepth = when (format?.encoding) {
+                AudioFormat.ENCODING_PCM_16BIT -> "16-BIT"
+                AudioFormat.ENCODING_PCM_24BIT_PACKED -> "24-BIT"
+                AudioFormat.ENCODING_PCM_32BIT,
+                AudioFormat.ENCODING_PCM_FLOAT -> "32-BIT / HI-RES"
+                else -> "24-BIT"
+            }
+        } else {
+            isTrackPlaying = audioManager?.isMusicActive == true
+            if (!isTrackPlaying) {
+                activeTrackSampleRate = 0
+            } else if (activeTrackSampleRate == 0) {
+                activeTrackSampleRate = 48000
+                activeTrackBitDepth = "24-BIT"
+            }
+        }
+    }
+
+    private fun formatSampleRateKHz(sampleRateHz: Int): String {
+        if (sampleRateHz <= 0) return "48kHz"
+        return if (sampleRateHz % 1000 == 0) {
+            "${sampleRateHz / 1000}kHz"
+        } else {
+            String.format("%.1fkHz", sampleRateHz / 1000.0)
+        }
+    }
+
     /**
-     * Queries active audio output devices and BluetoothA2dp codec configuration
-     * to render live audiophile telemetry.
+     * Queries active audio output devices, live track playback telemetry, and BluetoothA2dp
+     * codec configuration to render live audiophile telemetry.
      */
     private fun updateCodecTelemetry() {
         val tvCodecStatus = findViewById<TextView>(R.id.tvCodecStatus) ?: return
@@ -299,21 +398,42 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
 
         when {
             a2dpDevice != null -> {
-                val codecDetails = queryActiveA2dpCodecString()
-                tvCodecStatus.text = codecDetails
+                val (codecName, deviceName) = queryActiveA2dpCodecAndDevice(a2dpDevice)
+                if (isTrackPlaying) {
+                    val sampleRateStr = formatSampleRateKHz(activeTrackSampleRate)
+                    tvCodecStatus.text = "PLAYING: $activeTrackBitDepth / $sampleRateStr // $codecName"
+                } else {
+                    tvCodecStatus.text = "CODEC: $codecName // $deviceName (READY)"
+                }
                 tvCodecStatus.setTextColor(Color.parseColor("#00F0FF"))
             }
             bleDevice != null -> {
-                tvCodecStatus.text = "CODEC: LC3 // LE AUDIO DIRECT"
+                val deviceName = bleDevice.productName?.toString()?.takeIf { it.isNotBlank() } ?: "LE AUDIO"
+                if (isTrackPlaying) {
+                    val sampleRateStr = formatSampleRateKHz(activeTrackSampleRate)
+                    tvCodecStatus.text = "PLAYING: $activeTrackBitDepth / $sampleRateStr // LC3"
+                } else {
+                    tvCodecStatus.text = "CODEC: LC3 // $deviceName (READY)"
+                }
                 tvCodecStatus.setTextColor(Color.parseColor("#00F0FF"))
             }
             usbDevice != null -> {
-                val sampleRateStr = usbDevice.sampleRates.maxOrNull()?.let { "${it / 1000}kHz" } ?: "HI-RES"
-                tvCodecStatus.text = "WIRED HI-RES // USB DAC ($sampleRateStr)"
+                val deviceName = usbDevice.productName?.toString()?.takeIf { it.isNotBlank() } ?: "USB DAC"
+                if (isTrackPlaying) {
+                    val sampleRateStr = formatSampleRateKHz(activeTrackSampleRate)
+                    tvCodecStatus.text = "PLAYING: $activeTrackBitDepth / $sampleRateStr // USB DAC"
+                } else {
+                    tvCodecStatus.text = "CODEC: PCM HI-RES // $deviceName (READY)"
+                }
                 tvCodecStatus.setTextColor(Color.parseColor("#E5B869"))
             }
             wiredDevice != null -> {
-                tvCodecStatus.text = "ANALOG DIRECT // 3.5MM IEM OUT"
+                if (isTrackPlaying) {
+                    val sampleRateStr = formatSampleRateKHz(activeTrackSampleRate)
+                    tvCodecStatus.text = "PLAYING: $activeTrackBitDepth / $sampleRateStr // 3.5MM IEM"
+                } else {
+                    tvCodecStatus.text = "CODEC: ANALOG DIRECT // 3.5MM IEM (READY)"
+                }
                 tvCodecStatus.setTextColor(Color.parseColor("#E5B869"))
             }
             else -> {
@@ -324,11 +444,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     }
 
     @SuppressLint("MissingPermission")
-    private fun queryActiveA2dpCodecString(): String {
-        cachedCodecConfig?.let { cfg ->
-            return formatCodecConfig(cfg, "Buds")
-        }
-
+    private fun queryActiveA2dpCodecAndDevice(a2dpAudioDevice: AudioDeviceInfo): Pair<String, String> {
         val a2dp = bluetoothA2dp
         val activeDevice: BluetoothDevice? = try {
             val getActiveDeviceMethod = a2dp?.javaClass?.getMethod("getActiveDevice")
@@ -336,7 +452,15 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         } catch (_: Exception) {
             null
         } ?: runCatching { a2dp?.connectedDevices?.firstOrNull() }.getOrNull()
-          ?: runCatching { bluetoothAdapter?.bondedDevices?.firstOrNull { it.name?.contains("Buds", ignoreCase = true) == true } }.getOrNull()
+          ?: runCatching {
+              bluetoothAdapter?.bondedDevices?.firstOrNull {
+                  it.name?.contains("Buds", ignoreCase = true) == true
+              }
+          }.getOrNull()
+
+        val resolvedDeviceName = runCatching { activeDevice?.name }.getOrNull()
+            ?: a2dpAudioDevice.productName?.toString()?.takeIf { it.isNotBlank() }
+            ?: "Buds2 Pro"
 
         if (a2dp != null && activeDevice != null) {
             try {
@@ -348,23 +472,22 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                 val codecConfig: BluetoothCodecConfig? = codecStatus?.codecConfig
                 if (codecConfig != null) {
                     cachedCodecConfig = codecConfig
-                    return formatCodecConfig(codecConfig, activeDevice.name)
+                    return Pair(resolveCodecName(codecConfig, resolvedDeviceName), resolvedDeviceName.uppercase())
                 }
             } catch (_: Exception) {
             }
         }
 
-        val deviceName = activeDevice?.name ?: "Buds2 Pro"
-        return if (deviceName.contains("Buds", ignoreCase = true)) {
-            "CODEC: AAC // 24-BIT / 48kHz"
-        } else {
-            "CODEC: AAC // HI-RES STREAM"
+        cachedCodecConfig?.let { cfg ->
+            return Pair(resolveCodecName(cfg, resolvedDeviceName), resolvedDeviceName.uppercase())
         }
+
+        return Pair("AAC", resolvedDeviceName.uppercase())
     }
 
-    private fun formatCodecConfig(config: BluetoothCodecConfig, deviceName: String?): String {
+    private fun resolveCodecName(config: BluetoothCodecConfig, deviceName: String?): String {
         val isBuds = deviceName?.contains("Buds", ignoreCase = true) == true
-        val codecName = when (config.codecType) {
+        return when (config.codecType) {
             0 -> "SBC"
             1 -> "AAC"
             2 -> "aptX"
@@ -372,52 +495,55 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             4 -> "LDAC"
             5 -> "LC3"
             6 -> "aptX Adaptive"
-            else -> if (isBuds) "SSC (Seamless)" else "HI-RES BT"
+            else -> if (isBuds) "SSC" else "HI-RES BT"
         }
+    }
 
-        val bitDepth = when (config.bitsPerSample) {
-            BluetoothCodecConfig.BITS_PER_SAMPLE_16 -> "16-BIT"
-            BluetoothCodecConfig.BITS_PER_SAMPLE_24 -> "24-BIT"
-            BluetoothCodecConfig.BITS_PER_SAMPLE_32 -> "32-BIT"
-            else -> null
+    private fun forceDisableDsp() {
+        isDspActive = false
+        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("DSP_ACTIVE", false)
+            .apply()
+        val dspIntent = Intent(this, AudioDspService::class.java).apply {
+            action = AudioDspService.ACTION_TOGGLE_DSP
+            putExtra("STATE", false)
         }
-
-        val sampleRate = when (config.sampleRate) {
-            BluetoothCodecConfig.SAMPLE_RATE_44100 -> "44.1kHz"
-            BluetoothCodecConfig.SAMPLE_RATE_48000 -> "48kHz"
-            BluetoothCodecConfig.SAMPLE_RATE_88200 -> "88.2kHz"
-            BluetoothCodecConfig.SAMPLE_RATE_96000 -> "96kHz"
-            BluetoothCodecConfig.SAMPLE_RATE_176400 -> "176.4kHz"
-            BluetoothCodecConfig.SAMPLE_RATE_192000 -> "192kHz"
-            else -> null
-        }
-
-        return when {
-            bitDepth != null && sampleRate != null -> "CODEC: $codecName $bitDepth / $sampleRate"
-            sampleRate != null -> "CODEC: $codecName / $sampleRate"
-            else -> "CODEC: $codecName"
-        }
+        startService(dspIntent)
+        AetherDspTileService.requestTileUpdate(this)
     }
 
     private fun loadState() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         isDspActive = prefs.getBoolean("DSP_ACTIVE", false)
-        val profileName = prefs.getString("ACTIVE_PROFILE", Buds2ProAudioProfile.ORIGINAL_SOUND.name)
-        currentProfile = try {
-            Buds2ProAudioProfile.valueOf(profileName ?: Buds2ProAudioProfile.ORIGINAL_SOUND.name)
-        } catch (e: Exception) {
+        val profileName = prefs.getString("ACTIVE_PROFILE", null)
+        currentProfile = if (!profileName.isNullOrBlank()) {
+            runCatching { Buds2ProAudioProfile.valueOf(profileName) }
+                .getOrDefault(Buds2ProAudioProfile.ORIGINAL_SOUND)
+        } else {
             Buds2ProAudioProfile.ORIGINAL_SOUND
         }
 
-        if (currentProfile != Buds2ProAudioProfile.ORIGINAL_SOUND && isDspActive) {
-            isDspActive = false
-            prefs.edit().putBoolean("DSP_ACTIVE", false).apply()
+        if (!isHeadsetConnected()) {
+            if (isDspActive) {
+                forceDisableDsp()
+            } else {
+                isDspActive = false
+            }
+        } else if (currentProfile != Buds2ProAudioProfile.ORIGINAL_SOUND && isDspActive) {
+            forceDisableDsp()
         }
 
         updateUi()
     }
 
     private fun toggleDsp() {
+        if (!isHeadsetConnected()) {
+            forceDisableDsp()
+            updateUi()
+            return
+        }
+
         isDspActive = !isDspActive
         getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
             .putBoolean("DSP_ACTIVE", isDspActive).apply()
@@ -437,39 +563,38 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     }
 
     private fun setProfile(profile: Buds2ProAudioProfile) {
-        if (profile == Buds2ProAudioProfile.ORIGINAL_SOUND && !isHeadsetConnected()) {
-            Toast.makeText(this, "Connect Galaxy Buds or IEMs to access Original Bit-Perfect mode", Toast.LENGTH_SHORT).show()
-            return
-        }
-
         currentProfile = profile
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().putString("ACTIVE_PROFILE", profile.name).apply()
 
-        if (profile != Buds2ProAudioProfile.ORIGINAL_SOUND && isDspActive) {
-            isDspActive = false
-            prefs.edit().putBoolean("DSP_ACTIVE", false).apply()
-            val dspIntent = Intent(this, AudioDspService::class.java).apply {
-                action = AudioDspService.ACTION_TOGGLE_DSP
-                putExtra("STATE", false)
+        val connected = isHeadsetConnected()
+        if (!connected || profile != Buds2ProAudioProfile.ORIGINAL_SOUND) {
+            if (isDspActive) {
+                forceDisableDsp()
+            } else {
+                isDspActive = false
             }
-            startService(dspIntent)
-            AetherDspTileService.requestTileUpdate(this)
         }
 
-        HyperOSHelper.setHyperOsEffect(this, profile.hyperOsEffect)
-
-        val intent = Intent(this, AudioDspService::class.java).apply {
-            action = AudioDspService.ACTION_SET_PROFILE
-            putExtra("PROFILE", profile.name)
-        }
-        if (isDspActive) {
-            ContextCompat.startForegroundService(this, intent)
-        } else {
-            startService(intent)
+        runCatching {
+            HyperOSHelper.setHyperOsEffect(this, profile.hyperOsEffect)
         }
 
-        AetherProfileTileService.requestTileUpdate(this)
+        runCatching {
+            val intent = Intent(this, AudioDspService::class.java).apply {
+                action = AudioDspService.ACTION_SET_PROFILE
+                putExtra("PROFILE", profile.name)
+            }
+            if (isDspActive && connected) {
+                ContextCompat.startForegroundService(this, intent)
+            } else {
+                startService(intent)
+            }
+        }
+
+        runCatching {
+            AetherProfileTileService.requestTileUpdate(this)
+        }
         updateUi()
     }
 
@@ -481,12 +606,14 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         val btnProfileDolby = findViewById<Button>(R.id.btnProfileDolby)
         val btnProfileXiaomi = findViewById<Button>(R.id.btnProfileXiaomi)
 
+        val connected = isHeadsetConnected()
         val isOriginal = currentProfile == Buds2ProAudioProfile.ORIGINAL_SOUND
+        val effectiveDspActive = isDspActive && connected && isOriginal
 
-        if (isOriginal) {
+        if (isOriginal && connected) {
             btnMasterToggle.alpha = 1.0f
-            visualizer.setDspActive(isDspActive)
-            if (isDspActive) {
+            visualizer.setDspActive(effectiveDspActive)
+            if (effectiveDspActive) {
                 btnMasterToggle.text = "[ ACTIVE ]"
                 btnMasterToggle.setTextColor(Color.parseColor("#00F0FF"))
             } else {
@@ -494,7 +621,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                 btnMasterToggle.setTextColor(Color.parseColor("#FFFFFF"))
             }
         } else {
-            btnMasterToggle.alpha = 0.38f
+            btnMasterToggle.alpha = if (isOriginal) 0.65f else 0.38f
             btnMasterToggle.text = "[ BYPASSED ]"
             btnMasterToggle.setTextColor(Color.parseColor("#888888"))
             visualizer.setDspActive(false)
@@ -532,6 +659,10 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     }
 
     override fun onDestroy() {
+        try {
+            audioManager?.unregisterAudioPlaybackCallback(audioPlaybackCallback)
+        } catch (_: Exception) {
+        }
         try {
             bluetoothAdapter?.closeProfileProxy(BluetoothProfile.A2DP, bluetoothA2dp)
         } catch (_: Exception) {
