@@ -349,12 +349,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     }
 
     private fun formatSampleRateKHz(sampleRateHz: Int): String {
-        if (sampleRateHz <= 0) return "48kHz"
-        return if (sampleRateHz % 1000 == 0) {
-            "${sampleRateHz / 1000}kHz"
-        } else {
-            String.format("%.1fkHz", sampleRateHz / 1000.0)
-        }
+        return com.audiophile.buds2prooptimizer.util.AudioTelemetryUtils.formatSampleRateKHz(sampleRateHz)
     }
 
     /**
@@ -471,17 +466,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     }
 
     private fun resolveCodecName(config: BluetoothCodecConfig, deviceName: String?): String {
-        val isBuds = deviceName?.contains("Buds", ignoreCase = true) == true
-        return when (config.codecType) {
-            0 -> "SBC"
-            1 -> "AAC"
-            2 -> "aptX"
-            3 -> "aptX HD"
-            4 -> "LDAC"
-            5 -> "LC3"
-            6 -> "aptX Adaptive"
-            else -> if (isBuds) "SSC" else "HI-RES BT"
-        }
+        return com.audiophile.buds2prooptimizer.util.AudioTelemetryUtils.resolveCodecName(config.codecType, deviceName)
     }
 
     private fun forceDisableDsp() {

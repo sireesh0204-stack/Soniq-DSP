@@ -119,16 +119,10 @@ class AetherVisualizerView @JvmOverloads constructor(
         wavePath.reset()
         val segments = 96
         val dx = widthF / segments
-        val twoPi = (2.0 * Math.PI).toFloat()
-        val fourPi = (4.0 * Math.PI).toFloat()
 
         fun sampleWaveY(xPos: Float): Float {
             val normX = (xPos / widthF).coerceIn(0f, 1f)
-            // Subtle edge envelope taper for an organic acoustic ribbon look
-            val envelope = sin(normX * Math.PI).toFloat() * 0.15f + 0.85f
-            val primary = sin(normX * twoPi + phase) * 0.72f
-            val harmonic = sin(normX * fourPi - phase * 0.85f) * 0.28f
-            return centerY + (primary + harmonic) * currentAmplitude * envelope
+            return VisualizerMath.calculateWaveY(centerY, currentAmplitude, normX, phase)
         }
 
         var x0 = 0f

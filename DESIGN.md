@@ -102,3 +102,4 @@
    - Slide-up modal educating the user on Harman 2019v2 target benefits, pre-amp digital headroom (-2.5dB), spatial audio compatibility, and Xiaomi HyperOS system permission setup.
 3. **Home Screen Widgets** ([`app/src/main/res/layout/widget_*_layout.xml`](file:///d:/Mobile%20Projects/Buds2Pro-HyperOS-Optimizer/app/src/main/res/layout/)):
    - Compact homescreen widgets (2x1, 2x2, 2x4, 4x1, 4x2) providing glanceable DSP status and one-tap profile toggling.
+

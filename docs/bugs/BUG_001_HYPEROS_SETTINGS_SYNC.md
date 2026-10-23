@@ -47,3 +47,4 @@ adb shell settings get system effect_implementer
 adb shell settings get global dolby_effect_switch
 adb shell settings get global misound_state
 ```
+

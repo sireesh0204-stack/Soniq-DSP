@@ -49,3 +49,4 @@ adb shell settings get global dolby_effect_switch
 adb shell settings get system dolby_effect_switch
 # Expected: 0
 ```
+

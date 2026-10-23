@@ -19,3 +19,4 @@
 3. **Design Handoff**: When visual design is requested, Antigravity prepares a pure copy-paste prompt for Argon 4 with metadata placed outside the code block. When the user brings the design back, Antigravity wires it to the logic and runs verification on device.
 4. **One Bug Per Commit**: Commit each fix atomically with its Bug ID.
 5. **No Weakening Tests**: Never delete or weaken a test or harness check to make a fix or design fit.
+
