@@ -6,19 +6,19 @@
     android:viewportWidth="400"
     android:viewportHeight="120">
 
-    <!-- Recessed dark chassis track -->
-    <path
-        android:pathData="M 40,10 L 360,10 C 390,10 390,110 360,110 L 40,110 C 10,110 10,10 40,10 Z"
-        android:fillColor="#161A24" />
-
-    <!-- a - S - Z - S - D (with micro-spacing) -->
+    <!-- Connected a-S-Z-S-D Monogram -->
     <path
         android:pathData="
-            M 90,25 C 50,25 50,95 90,95 
-            M 105,25 L 165,25 M 105,25 L 165,95 M 105,95 L 165,95 
-            M 180,95 L 240,95 M 180,95 L 240,25 M 180,25 L 240,25 
-            M 255,25 L 315,25 M 255,25 L 315,95 M 255,95 L 315,95 
-            M 330,25 C 370,25 370,95 330,95"
+            M 90,25 
+            C 50,25 50,95 90,95 
+            L 165,95 
+            L 105,25 
+            L 240,25 
+            L 180,95 
+            L 315,95 
+            L 255,25 
+            L 330,25 
+            C 370,25 370,95 330,95"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:strokeWidth="7">
