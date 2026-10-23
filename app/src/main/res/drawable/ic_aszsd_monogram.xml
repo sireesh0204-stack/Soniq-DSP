@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="36dp"
+    android:viewportWidth="400"
+    android:viewportHeight="120">
+
+    <!-- 1. 'a' (Anasuri) Opening Arc -->
+    <path
+        android:pathData="M 60,25 C 24,25 24,95 60,95"
+        android:strokeColor="#E5B869"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="7" />
+
+    <!-- 2. 'S' (Sireesh): Top rail + '\' diagonal + bottom rail -->
+    <path
+        android:pathData="M 90,25 L 145,25"
+        android:strokeColor="#E5B869"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="7" />
+    <path
+        android:pathData="M 90,25 L 145,95"
+        android:strokeColor="#E5B869"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="7" />
+    <path
+        android:pathData="M 90,95 L 145,95"
+        android:strokeColor="#E5B869"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="7" />
+
+    <!-- 3. 'Z' (Zoro): '/' diagonal connecting bottom to top -->
+    <path
+        android:pathData="M 145,95 L 205,25"
+        android:strokeColor="#E5B869"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="7" />
+    <path
+        android:pathData="M 145,25 L 205,25"
+        android:strokeColor="#E5B869"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="7" />
+
+    <!-- 4. 'S' (Sweety): '\' diagonal from top rail to bottom -->
+    <path
+        android:pathData="M 205,25 L 265,95"
+        android:strokeColor="#E5B869"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="7" />
+    <path
+        android:pathData="M 205,95 L 265,95"
+        android:strokeColor="#E5B869"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="7" />
+
+    <!-- 5. 'D' (Dhanvika): Top & bottom rails closing into rounded arc -->
+    <path
+        android:pathData="M 265,25 L 320,25 C 360,25 360,95 320,95 L 265,95"
+        android:strokeColor="#E5B869"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="7" />
+</vector>

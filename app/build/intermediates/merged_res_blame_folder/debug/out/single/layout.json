@@ -1,0 +1,34 @@
+[
+    {
+        "merged": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-mergeDebugResources-30:\\layout\\widget_4x1_layout.xml",
+        "source": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-main-33:\\layout\\widget_4x1_layout.xml"
+    },
+    {
+        "merged": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-mergeDebugResources-30:\\layout\\widget_2x2_layout.xml",
+        "source": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-main-33:\\layout\\widget_2x2_layout.xml"
+    },
+    {
+        "merged": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-mergeDebugResources-30:\\layout\\widget_2x4_layout.xml",
+        "source": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-main-33:\\layout\\widget_2x4_layout.xml"
+    },
+    {
+        "merged": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-mergeDebugResources-30:\\layout\\widget_4x2_layout.xml",
+        "source": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-main-33:\\layout\\widget_4x2_layout.xml"
+    },
+    {
+        "merged": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-mergeDebugResources-30:\\layout\\widget_2x1_layout.xml",
+        "source": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-main-33:\\layout\\widget_2x1_layout.xml"
+    },
+    {
+        "merged": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-mergeDebugResources-30:\\layout\\activity_main.xml",
+        "source": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-main-33:\\layout\\activity_main.xml"
+    },
+    {
+        "merged": "com.audiophile.buds2prooptimizer.app-mergeDebugResources-30:/layout/activity_main.xml",
+        "source": "com.audiophile.buds2prooptimizer.app-main-33:/layout/activity_main.xml"
+    },
+    {
+        "merged": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-mergeDebugResources-30:\\layout\\bottom_sheet_aether_guide.xml",
+        "source": "C:\\Users\\siree\\.gradle\\daemon\\8.2.1\\com.audiophile.buds2prooptimizer.app-main-33:\\layout\\bottom_sheet_aether_guide.xml"
+    }
+]

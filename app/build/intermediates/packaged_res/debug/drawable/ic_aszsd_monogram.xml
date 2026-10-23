@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="120dp"
+    android:height="36dp"
+    android:viewportWidth="380"
+    android:viewportHeight="120">
+
+    <!-- Faint Recessed Shadow Channel -->
+    <path
+        android:pathData="M 55,25 A 35,35 0 0,0 55,95 H 115 M 55,25 H 125 L 175,95 M 175,95 L 225,25 H 285 L 325,95 H 265 M 285,25 H 325 A 35,35 0 0,1 325,95"
+        android:strokeWidth="11"
+        android:strokeColor="#0A0C10"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- ASZSD Monogram Precision Stroke (Anasuri - Sireesh - Zoro - Sweety - Dhanvika) -->
+    <path
+        android:pathData="M 55,25 A 35,35 0 0,0 55,95 H 115 M 55,25 H 125 L 175,95 M 175,95 L 225,25 H 285 L 325,95 H 265 M 285,25 H 325 A 35,35 0 0,1 325,95"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="55"
+                android:startY="25"
+                android:endX="360"
+                android:endY="95"
+                android:type="linear">
+                <item android:color="#7000F0FF" android:offset="0.0" />
+                <item android:color="#507B61FF" android:offset="0.5" />
+                <item android:color="#70E5B869" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

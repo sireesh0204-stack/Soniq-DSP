@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="accent_cyan">#00F0FF</color>
+    <color name="accent_emerald">#10B981</color>
+    <color name="accent_gold">#E5B869</color>
+    <color name="accent_green">#10B981</color>
+    <color name="accent_primary">#00F0FF</color>
+    <color name="accent_ruby">#FF3B56</color>
+    <color name="bg_dark">#08090C</color>
+    <color name="border_specular">#444E63</color>
+    <color name="border_subtle">#262C38</color>
+    <color name="surface_carbon">#101318</color>
+    <color name="surface_raised">#181C24</color>
+    <color name="text_muted">#475569</color>
+    <color name="text_secondary">#94A3B8</color>
+    <color name="text_white">#F7F8FA</color>
+    <string name="app_name">Soniq</string>
+    <string name="app_subtitle">S O N I Q  //  B U D S 2  P R O</string>
+    <string name="battery_disconnected">--</string>
+    <string name="btn_anc_active">ANC</string>
+    <string name="btn_anc_ambient">AMBIENT</string>
+    <string name="btn_anc_off">OFF</string>
+    <string name="btn_header_guide">[ ? GUIDE ]</string>
+    <string name="btn_open_bt_settings">INSPECT A2DP CODEC STACK</string>
+    <string name="btn_open_sound_settings">ENGAGE BIT-PERFECT HYPEROS MODE</string>
+    <string name="btn_toggle_tips_hide">[ TIPS: OFF ]</string>
+    <string name="btn_toggle_tips_show">[ TIPS: ON ]</string>
+    <string name="deck_anc_title">02 / TACTILE ACOUSTIC ENGINE</string>
+    <string name="deck_dsp_title">03 / 64-BIT STUDIO MATRIX</string>
+    <string name="deck_hardware_title">01 / HARDWARE TELEMETRY</string>
+    <string name="deck_hyperos_title">05 / HYPEROS PURITY HOOKS</string>
+    <string name="deck_skin_title">04 / WIDGET CHASSIS SKINS</string>
+    <string name="default_codec_telemetry">CODEC: DETECTING AUDIO ROUTE…</string>
+    <string name="ecosystem_footer">ZORIS LABS</string>
+    <string name="preamp_label">DIGITAL HEADROOM: -2.5 dB (PREVENTS AAC CLIPPING)</string>
+    <string name="preset_flat_bypass">Flat Bypass (Pure AAC)</string>
+    <string name="preset_harman_restore">Harman Hi-Res Restore</string>
+    <string name="preset_neutral_reference">Neutral Studio Reference</string>
+    <string name="preset_tight_bass">Fast Transient / Tight Bass</string>
+    <string name="preset_vocal_clarity">Acoustic &amp; Vocal Presence</string>
+    <string name="status_connected">ONLINE • HARDWARE SYNCED</string>
+    <string name="status_disconnected">DISCONNECTED // IN CASE</string>
+    <string name="tip_anc">// HARDWARE PHASE-INVERTED NOISE CANCELLATION</string>
+    <string name="tip_dsp">// HARMAN TARGET CORRECTION + 16kHz AIR RESTORATION</string>
+    <string name="tip_skins">// INSTANT CHASSIS RESKIN FOR ALL HOME SCREEN WIDGETS</string>
+    <string name="tip_telemetry">// REAL-TIME HARDWARE SENSORS VIA RFCOMM SERIAL BUS</string>
+    <style name="Theme.Buds2ProOptimizer" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:statusBarColor">@color/bg_dark</item>
+        <item name="android:navigationBarColor">@color/bg_dark</item>
+        <item name="android:windowBackground">@color/bg_dark</item>
+        <item name="colorPrimary">@color/accent_primary</item>
+        <item name="colorSecondary">@color/accent_cyan</item>
+    </style>
+</resources>

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Outer Circular Acoustic Chamber / Halo -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M12,2 C6.48,2 2,6.48 2,12 C2,17.52 6.48,22 12,22 C17.52,22 22,17.52 22,12 C22,6.48 17.52,2 12,2 Z" />
+
+    <!-- Harman Iconic Bold 'H' with Center Frequency Bar -->
+    <!-- Left Pillar -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M7,6 L9.5,6 L9.5,18 L7,18 Z" />
+
+    <!-- Right Pillar -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M14.5,6 L17,6 L17,18 L14.5,18 Z" />
+
+    <!-- Crossbar -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M9.5,10.75 L14.5,10.75 L14.5,13.25 L9.5,13.25 Z" />
+
+    <!-- Sub-bass Acoustic Pulse Arc inside -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round"
+        android:pathData="M4.5,12 C4.5,7.86 7.86,4.5 12,4.5" />
+</vector>
+

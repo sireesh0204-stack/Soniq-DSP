@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Xiaomi Squircle Badge with Stylized "mi" Logo -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M6,3 C4.34,3 3,4.34 3,6 L3,18 C3,19.66 4.34,21 6,21 L18,21 C19.66,21 21,19.66 21,18 L21,6 C21,4.34 19.66,3 18,3 Z M7.5,7.5 L12,7.5 C13.38,7.5 14.5,8.62 14.5,10 L14.5,16.5 L12.5,16.5 L12.5,10.2 C12.5,9.65 12.05,9.2 11.5,9.2 L9.5,9.2 L9.5,16.5 L7.5,16.5 Z M15.5,7.5 L17.5,7.5 L17.5,16.5 L15.5,16.5 Z" />
+</vector>
+
