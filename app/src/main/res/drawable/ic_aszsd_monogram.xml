@@ -1,71 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="120dp"
-    android:height="36dp"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="110dp"
+    android:height="32dp"
     android:viewportWidth="400"
     android:viewportHeight="120">
 
-    <!-- 1. 'a' (Anasuri) Opening Arc -->
+    <!-- Recessed dark chassis track -->
     <path
-        android:pathData="M 60,25 C 24,25 24,95 60,95"
-        android:strokeColor="#E5B869"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="7" />
+        android:pathData="M 40,10 L 360,10 C 390,10 390,110 360,110 L 40,110 C 10,110 10,10 40,10 Z"
+        android:fillColor="#161A24" />
 
-    <!-- 2. 'S' (Sireesh): Top rail + '\' diagonal + bottom rail -->
+    <!-- a - S - Z - S - D (with micro-spacing) -->
     <path
-        android:pathData="M 90,25 L 145,25"
-        android:strokeColor="#E5B869"
+        android:pathData="
+            M 90,25 C 50,25 50,95 90,95 
+            M 105,25 L 165,25 M 105,25 L 165,95 M 105,95 L 165,95 
+            M 180,95 L 240,95 M 180,95 L 240,25 M 180,25 L 240,25 
+            M 255,25 L 315,25 M 255,25 L 315,95 M 255,95 L 315,95 
+            M 330,25 C 370,25 370,95 330,95"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:strokeWidth="7" />
-    <path
-        android:pathData="M 90,25 L 145,95"
-        android:strokeColor="#E5B869"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="7" />
-    <path
-        android:pathData="M 90,95 L 145,95"
-        android:strokeColor="#E5B869"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="7" />
-
-    <!-- 3. 'Z' (Zoro): '/' diagonal connecting bottom to top -->
-    <path
-        android:pathData="M 145,95 L 205,25"
-        android:strokeColor="#E5B869"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="7" />
-    <path
-        android:pathData="M 145,25 L 205,25"
-        android:strokeColor="#E5B869"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="7" />
-
-    <!-- 4. 'S' (Sweety): '\' diagonal from top rail to bottom -->
-    <path
-        android:pathData="M 205,25 L 265,95"
-        android:strokeColor="#E5B869"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="7" />
-    <path
-        android:pathData="M 205,95 L 265,95"
-        android:strokeColor="#E5B869"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="7" />
-
-    <!-- 5. 'D' (Dhanvika): Top & bottom rails closing into rounded arc -->
-    <path
-        android:pathData="M 265,25 L 320,25 C 360,25 360,95 320,95 L 265,95"
-        android:strokeColor="#E5B869"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="7" />
+        android:strokeWidth="7">
+        
+        <!-- Dual-tone gradient: Cyber Cyan to Satin Gold -->
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="50"
+                android:startY="60"
+                android:endX="370"
+                android:endY="60"
+                android:type="linear">
+                <item android:offset="0" android:color="#00F0FF" />
+                <item android:offset="1" android:color="#E5B869" />
+            </gradient>
+        </aapt:attr>
+    </path>
 </vector>
