@@ -39,18 +39,21 @@ This registry tracks every historical and currently active bug in the Soniq DSP 
 ---
 
 ### `BUG-002`: `AudioEffectCenter` `Spatializer.setEnabled` Fatal Crash
-- **Status**: **FIXED** (in commit `3385f37`, previously regressed in `8740a86`)
+- **Status**: **FIXED**
 - **Coupled With**: `BUG-001`, `BUG-003`
-- **Symptom**: Tapping any profile button (or specifically **ORIGINAL**) causes the app to abruptly crash with `FATAL EXCEPTION: main`.
+- **Symptom**: Tapping profile buttons (or specifically when earbuds/IEMs are connected) causes the app to abruptly crash with `FATAL EXCEPTION: main`.
 - **Repro Steps**:
-  1. Launch `Soniq DSP`.
-  2. Tap **ORIGINAL** (or any profile if `setEffectActive("none", ...)` is called).
+  1. Launch `Soniq DSP` with earbuds or IEMs connected.
+  2. Tap any profile button (e.g. **ORIGINAL**, **DOLBY**, or **XIAOMI**).
   3. App closes immediately; logcat prints:
      `java.lang.SecurityException: Access denied, requires: android.permission.MODIFY_DEFAULT_AUDIO_EFFECTS at android.media.Spatializer.setEnabled()`.
-- **Root Cause**: Confirmed. Invoking `AudioEffectCenter.getInstance(context).setEffectActive(centerInstance, "none", true)` forces the internal `BaseEffectPresenter` to post to the calling app's main Looper. The presenter invokes `Spatializer.setEnabled()`, which requires platform signature permission `MODIFY_DEFAULT_AUDIO_EFFECTS`. Because it runs on the main thread message loop, standard try/catch blocks cannot intercept it.
-- **Fix**: Commit `3385f37` in [`HyperOSHelper.kt`](file:///d:/Mobile%20Projects/Buds2Pro-HyperOS-Optimizer/app/src/main/java/com/audiophile/buds2prooptimizer/util/HyperOSHelper.kt) in `invokeAudioEffectCenter()`: explicitly deactivates `"dolby"` and `"misound"` without ever calling `setEffectActive("none", true)`.
+- **Root Cause**: Confirmed via bytecode disassembly of `BaseEffectPresenter.smali` and `MTKEffectPresenter.smali`:
+  When a headset is connected, `isSpatialAudioAvailable` evaluates to `true`. Whenever `AudioEffectCenter.setEffectActive(...)` changes profile states, `MTKEffectPresenter` triggers `setSpatialAudioActiveAsync()`, posting message `what=2` to `BaseEffectPresenter$H` on the application's Main Looper. When processed, `handleMessage` calls `setSpatialAudioActiveLocked()` -> `mSpatializer.setEnabled(...)`, which requires privileged signature permission `MODIFY_DEFAULT_AUDIO_EFFECTS`. Because it runs on the Looper's message loop outside of caller call stacks, standard synchronous try/catch blocks cannot intercept it.
+- **Fix**: Dual defense in [`HyperOSHelper.kt`](file:///d:/Mobile%20Projects/Buds2Pro-HyperOS-Optimizer/app/src/main/java/com/audiophile/buds2prooptimizer/util/HyperOSHelper.kt):
+  1. `neutralizeSpatializerInCenter()` attaches a protective `Handler.Callback` to `BaseEffectPresenter$H` that consumes message `what=2` before `handleMessage` can execute, preventing `Spatializer.setEnabled` from being called entirely.
+  2. `installFrameworkCrashProtector()` wraps the Main Looper with an exception barrier that catches and suppresses any unhandled framework `SecurityException` containing `MODIFY_DEFAULT_AUDIO_EFFECTS` / `Spatializer.setEnabled`.
 - **Must-Not-Break**: Must never remove the deactivation calls completely, otherwise `BUG-001` returns.
-- **Regression Check**: `scripts/device_smoke.sh` Step 1 (Monitors logcat for `MODIFY_DEFAULT_AUDIO_EFFECTS` and `FATAL EXCEPTION`).
+- **Regression Check**: `scripts/device_smoke.sh` Step 1 and `scripts/verify.ps1` (Monitors logcat for `MODIFY_DEFAULT_AUDIO_EFFECTS` and `FATAL EXCEPTION`).
 
 ---
 

@@ -50,5 +50,15 @@ class AetherHapticFeedback(context: Context) {
             vibrator.vibrate(longArrayOf(0, 15, 50, 15), -1)
         }
     }
+
+    fun performError() {
+        if (!isEnabled || vibrator?.hasVibrator() != true) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_DOUBLE_CLICK))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(longArrayOf(0, 20, 60, 20), -1)
+        }
+    }
 }
 

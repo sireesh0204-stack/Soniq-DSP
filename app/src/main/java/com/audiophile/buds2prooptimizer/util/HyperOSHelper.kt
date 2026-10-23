@@ -7,6 +7,9 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.Message
 import android.provider.Settings
 import android.util.Log
 import dalvik.system.PathClassLoader
@@ -98,6 +101,9 @@ object HyperOSHelper {
                 releaseRetainedEffects()
             }
 
+            // Install framework exception protector to guard against asynchronous Spatializer crashes
+            installFrameworkCrashProtector()
+
             // 2. Synchronize Settings.Global and Settings.System state tables first
             // so AudioEffectCenter / com.miui.misound observers read consistent state
             settingsSuccess = updateSystemSettings(context, normalizedEffect)
@@ -129,6 +135,88 @@ object HyperOSHelper {
         return centerSuccess || settingsSuccess || audioFxSuccess
     }
 
+    @Volatile
+    private var isCrashProtectorInstalled = false
+
+    /**
+     * Guards the calling process from framework-level uncaught SecurityExceptions thrown by
+     * `Spatializer.setEnabled` in `BaseEffectPresenter$H` when running on untrusted UIDs.
+     */
+    fun installFrameworkCrashProtector() {
+        if (isCrashProtectorInstalled) return
+        synchronized(this) {
+            if (isCrashProtectorInstalled) return
+            isCrashProtectorInstalled = true
+            Handler(Looper.getMainLooper()).post {
+                while (true) {
+                    try {
+                        Looper.loop()
+                    } catch (t: Throwable) {
+                        val isSpatializerSecurityException =
+                            (t is SecurityException || t.cause is SecurityException) &&
+                            (t.message?.contains("MODIFY_DEFAULT_AUDIO_EFFECTS") == true ||
+                             t.cause?.message?.contains("MODIFY_DEFAULT_AUDIO_EFFECTS") == true ||
+                             t.stackTraceToString().contains("Spatializer.setEnabled"))
+                        if (isSpatializerSecurityException) {
+                            Log.w(TAG, "Suppressed framework Spatializer SecurityException on main looper", t)
+                        } else {
+                            throw t
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun neutralizeSpatializerInCenter(centerInstance: Any) {
+        try {
+            var cls: Class<*>? = centerInstance.javaClass
+            while (cls != null && cls != Any::class.java) {
+                for (field in cls.declaredFields) {
+                    field.isAccessible = true
+                    val obj = field.get(centerInstance) ?: continue
+                    if (obj.javaClass.name.contains("Presenter")) {
+                        neutralizePresenterHandler(obj)
+                    }
+                }
+                cls = cls.superclass
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "neutralizeSpatializerInCenter failed: ${t.message}")
+        }
+    }
+
+    private fun neutralizePresenterHandler(presenter: Any) {
+        var cls: Class<*>? = presenter.javaClass
+        while (cls != null && cls != Any::class.java) {
+            for (f in cls.declaredFields) {
+                if (Handler::class.java.isAssignableFrom(f.type)) {
+                    try {
+                        f.isAccessible = true
+                        val handler = f.get(presenter) as? Handler ?: continue
+                        val callbackField = Handler::class.java.getDeclaredField("mCallback").apply {
+                            isAccessible = true
+                        }
+                        val existing = callbackField.get(handler) as? Handler.Callback
+                        callbackField.set(handler, Handler.Callback { msg ->
+                            // In BaseEffectPresenter$H, msg.what == 2 calls setSpatialAudioActiveLocked -> Spatializer.setEnabled
+                            // which throws SecurityException on non-system packages.
+                            if (msg.what == 2) {
+                                Log.d(TAG, "Suppressed BaseEffectPresenter spatializer msg (what=2)")
+                                return@Callback true
+                            }
+                            existing?.handleMessage(msg) ?: false
+                        })
+                        Log.d(TAG, "Installed protective Handler.Callback on ${presenter.javaClass.simpleName}.${f.name}")
+                    } catch (t: Throwable) {
+                        Log.w(TAG, "Failed hooking handler field ${f.name}: ${t.message}")
+                    }
+                }
+            }
+            cls = cls.superclass
+        }
+    }
+
     /**
      * Loads `android.media.audiofx.AudioEffectCenter` from boot classpath or via PathClassLoader
      * fallback from `/system_ext/framework/miui-framework.jar`, obtains the singleton instance via
@@ -143,6 +231,10 @@ object HyperOSHelper {
             }
             val centerInstance = getInstanceMethod.invoke(null, context.applicationContext ?: context)
                 ?: return false
+
+            // Neutralize internal presenter handlers before invoking effect changes to prevent
+            // BaseEffectPresenter$H from attempting privileged Spatializer binder transactions.
+            neutralizeSpatializerInCenter(centerInstance)
 
             val setEffectActiveMethod = clazz.getDeclaredMethod(
                 "setEffectActive",

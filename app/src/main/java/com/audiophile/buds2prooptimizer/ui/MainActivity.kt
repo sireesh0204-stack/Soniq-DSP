@@ -25,13 +25,18 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
+import android.view.animation.PathInterpolator
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
+import androidx.transition.AutoTransition
+import androidx.transition.TransitionManager
 import com.audiophile.buds2prooptimizer.R
 import com.audiophile.buds2prooptimizer.dsp.AudioDspService
 import com.audiophile.buds2prooptimizer.dsp.Buds2ProAudioProfile
@@ -52,6 +57,10 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
 
     private var isDspActive = false
     private var currentProfile = Buds2ProAudioProfile.ORIGINAL_SOUND
+
+    private lateinit var connectedConstraintSet: ConstraintSet
+    private lateinit var disconnectedConstraintSet: ConstraintSet
+    private var lastConnectedState: Boolean? = null
 
     @Volatile
     private var isTrackPlaying = false
@@ -127,6 +136,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        HyperOSHelper.installFrameworkCrashProtector()
         setContentView(R.layout.activity_main)
 
         hapticFeedback = AetherHapticFeedback(this)
@@ -134,6 +144,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         bluetoothAdapter = (getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
 
+        initConstraintSets()
         initBluetoothProxy()
         audioManager?.let { manager ->
             manager.registerAudioPlaybackCallback(audioPlaybackCallback, null)
@@ -217,6 +228,55 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         }
     }
 
+    private fun initConstraintSets() {
+        val rootLayout = findViewById<ConstraintLayout>(R.id.rootLayout) ?: return
+        connectedConstraintSet = ConstraintSet().apply {
+            clone(rootLayout)
+        }
+        val density = resources.displayMetrics.density
+        disconnectedConstraintSet = ConstraintSet().apply {
+            clone(connectedConstraintSet)
+            setVisibility(R.id.visualizer, ConstraintSet.GONE)
+            setVisibility(R.id.btnMasterToggle, ConstraintSet.GONE)
+
+            clear(R.id.btnHyperOs, ConstraintSet.BOTTOM)
+            connect(
+                R.id.btnHyperOs,
+                ConstraintSet.TOP,
+                R.id.tvCodecStatus,
+                ConstraintSet.BOTTOM,
+                (48 * density).toInt()
+            )
+
+            clear(R.id.llToggles, ConstraintSet.BOTTOM)
+            connect(
+                R.id.llToggles,
+                ConstraintSet.TOP,
+                R.id.btnHyperOs,
+                ConstraintSet.BOTTOM,
+                (24 * density).toInt()
+            )
+        }
+    }
+
+    private fun applyLayoutTransition(connected: Boolean) {
+        if (!::connectedConstraintSet.isInitialized || !::disconnectedConstraintSet.isInitialized) return
+        if (lastConnectedState == connected) return
+        val isInitial = (lastConnectedState == null)
+        lastConnectedState = connected
+
+        val rootLayout = findViewById<ConstraintLayout>(R.id.rootLayout) ?: return
+        if (!isInitial) {
+            val transition = AutoTransition().apply {
+                duration = 380L
+                interpolator = PathInterpolator(0.25f, 0.1f, 0.25f, 1f)
+            }
+            TransitionManager.beginDelayedTransition(rootLayout, transition)
+        }
+        val targetSet = if (connected) connectedConstraintSet else disconnectedConstraintSet
+        targetSet.applyTo(rootLayout)
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     private fun setupViews() {
         val btnMasterToggle = findViewById<Button>(R.id.btnMasterToggle)
@@ -265,6 +325,12 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         profileButtons.forEachIndexed { index, button ->
             bindInteractiveButton(button) {
                 val targetProfile = profiles[index]
+                if (targetProfile == Buds2ProAudioProfile.ORIGINAL_SOUND && !isHeadsetConnected()) {
+                    hapticFeedback.performError()
+                    soundEngine.playMechanicalClick()
+                    Toast.makeText(this, "Connect earbuds or IEMs to select Original Sound", Toast.LENGTH_SHORT).show()
+                    return@bindInteractiveButton
+                }
                 hapticFeedback.performClick()
                 soundEngine.playMechanicalClick()
                 setProfile(targetProfile)
@@ -500,6 +566,9 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             } else {
                 isDspActive = false
             }
+            if (currentProfile == Buds2ProAudioProfile.ORIGINAL_SOUND) {
+                currentProfile = Buds2ProAudioProfile.DOLBY_ATMOS
+            }
         } else if (currentProfile != Buds2ProAudioProfile.ORIGINAL_SOUND && isDspActive) {
             forceDisableDsp()
         }
@@ -586,6 +655,8 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         val isOriginal = currentProfile == Buds2ProAudioProfile.ORIGINAL_SOUND
         val effectiveDspActive = isDspActive && connected && isOriginal
 
+        applyLayoutTransition(connected)
+
         if (isOriginal && connected) {
             btnMasterToggle.alpha = 1.0f
             visualizer.setDspActive(effectiveDspActive)
@@ -610,12 +681,19 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         val inactiveColor = Color.parseColor("#161922")
         val inactiveTextColor = Color.parseColor("#FFFFFF")
 
-        btnProfileOriginal.backgroundTintList = ColorStateList.valueOf(
-            if (currentProfile == Buds2ProAudioProfile.ORIGINAL_SOUND) activeColor else inactiveColor
-        )
-        btnProfileOriginal.setTextColor(
-            if (currentProfile == Buds2ProAudioProfile.ORIGINAL_SOUND) activeTextColor else inactiveTextColor
-        )
+        if (!connected) {
+            btnProfileOriginal.alpha = 0.35f
+            btnProfileOriginal.backgroundTintList = ColorStateList.valueOf(inactiveColor)
+            btnProfileOriginal.setTextColor(Color.parseColor("#555E6D"))
+        } else {
+            btnProfileOriginal.alpha = 1.0f
+            btnProfileOriginal.backgroundTintList = ColorStateList.valueOf(
+                if (currentProfile == Buds2ProAudioProfile.ORIGINAL_SOUND) activeColor else inactiveColor
+            )
+            btnProfileOriginal.setTextColor(
+                if (currentProfile == Buds2ProAudioProfile.ORIGINAL_SOUND) activeTextColor else inactiveTextColor
+            )
+        }
 
         btnProfileDolby.backgroundTintList = ColorStateList.valueOf(
             if (currentProfile == Buds2ProAudioProfile.DOLBY_ATMOS) activeColor else inactiveColor
