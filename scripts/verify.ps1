@@ -2,6 +2,10 @@
 # Runs: Gradle Debug Build, Pure JVM Unit Tests, and Device Smoke Test
 # Asserts: BUG-001 through BUG-006
 
+param(
+    [switch]$SkipDevice
+)
+
 $ErrorActionPreference = "Stop"
 
 Write-Host "============================================================" -ForegroundColor Cyan
@@ -50,21 +54,28 @@ try {
 }
 
 # --- STEP 3: ADB Device Smoke Test (Guards BUG-001, BUG-002, BUG-003) ---
-Write-Host "`n>>> [STEP 3/3] Running Device Smoke Test on Connected Xiaomi HyperOS..." -ForegroundColor Yellow
-try {
-    $smokeScript = "scripts/device_smoke.ps1"
-    & powershell -ExecutionPolicy Bypass -File $smokeScript
-    if ($LASTEXITCODE -ne 0) {
-        throw "device_smoke.ps1 failed with exit code $LASTEXITCODE"
+if ($SkipDevice) {
+    Write-Host "`n>>> [STEP 3/3] Skipping Device Smoke Test (-SkipDevice specified)..." -ForegroundColor Yellow
+    $overallResults["BUG-001"] = "SKIPPED"
+    $overallResults["BUG-002"] = "SKIPPED"
+    $overallResults["BUG-003"] = "SKIPPED"
+} else {
+    Write-Host "`n>>> [STEP 3/3] Running Device Smoke Test on Connected Xiaomi HyperOS..." -ForegroundColor Yellow
+    try {
+        $smokeScript = "scripts/device_smoke.ps1"
+        & powershell -ExecutionPolicy Bypass -File $smokeScript
+        if ($LASTEXITCODE -ne 0) {
+            throw "device_smoke.ps1 failed with exit code $LASTEXITCODE"
+        }
+        $overallResults["BUG-001"] = "PASS"
+        $overallResults["BUG-002"] = "PASS"
+        $overallResults["BUG-003"] = "PASS"
+    } catch {
+        Write-Host "[FAIL] Device smoke test encountered failure: $_" -ForegroundColor Red
+        $overallResults["BUG-001"] = "FAIL"
+        $overallResults["BUG-002"] = "FAIL"
+        $overallResults["BUG-003"] = "FAIL"
     }
-    $overallResults["BUG-001"] = "PASS"
-    $overallResults["BUG-002"] = "PASS"
-    $overallResults["BUG-003"] = "PASS"
-} catch {
-    Write-Host "[FAIL] Device smoke test encountered failure: $_" -ForegroundColor Red
-    $overallResults["BUG-001"] = "FAIL"
-    $overallResults["BUG-002"] = "FAIL"
-    $overallResults["BUG-003"] = "FAIL"
 }
 
 # --- SUMMARY REPORT ---
@@ -77,6 +88,8 @@ foreach ($bugId in $overallResults.Keys) {
     $res = $overallResults[$bugId]
     if ($res -eq "PASS") {
         Write-Host "  [$bugId] PASS" -ForegroundColor Green
+    } elseif ($res -eq "SKIPPED") {
+        Write-Host "  [$bugId] SKIPPED" -ForegroundColor Yellow
     } else {
         Write-Host "  [$bugId] $res" -ForegroundColor Red
         $anyFail = $true

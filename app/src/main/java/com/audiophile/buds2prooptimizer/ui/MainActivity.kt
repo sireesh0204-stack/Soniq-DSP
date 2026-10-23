@@ -37,6 +37,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
+import androidx.core.view.doOnLayout
 import androidx.transition.ChangeBounds
 import androidx.transition.Fade
 import androidx.transition.TransitionManager
@@ -228,97 +229,131 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         }
     }
 
-    private fun applyFluidMotion(connected: Boolean) {
-        if (lastConnectedState == connected) return
+    private fun applyFluidMotion(connected: Boolean, force: Boolean = false) {
+        val rootLayout = findViewById<View>(R.id.rootLayout) ?: return
+        if (!rootLayout.isLaidOut) {
+            rootLayout.doOnLayout {
+                applyFluidMotion(connected, force = true)
+            }
+            return
+        }
+
+        if (!force && lastConnectedState == connected) return
         val isInitial = (lastConnectedState == null)
         lastConnectedState = connected
 
-        val rootLayout = findViewById<View>(R.id.rootLayout) ?: return
         val tvCodecStatus = findViewById<TextView>(R.id.tvCodecStatus) ?: return
         val visualizer = findViewById<AetherVisualizerView>(R.id.visualizer) ?: return
         val btnMasterToggle = findViewById<Button>(R.id.btnMasterToggle) ?: return
         val btnHyperOs = findViewById<Button>(R.id.btnHyperOs) ?: return
         val llToggles = findViewById<View>(R.id.llToggles) ?: return
 
-        fun runAnimation(animate: Boolean) {
-            val density = resources.displayMetrics.density
-            val targetY = tvCodecStatus.bottom + (32 * density).toInt()
-            val travelY = if (connected) 0f else (targetY - btnHyperOs.top).toFloat()
+        val density = resources.displayMetrics.density
+        val targetY = tvCodecStatus.bottom + (28 * density).toInt()
+        val travelY = if (connected) 0f else (targetY - btnHyperOs.top).toFloat()
 
-            val moveDuration = if (animate) 540L else 0L
-            val fadeDuration = if (animate) 340L else 0L
-            val fluidEase = PathInterpolator(0.22f, 1f, 0.36f, 1f)
+        val animate = !isInitial
 
+        visualizer.animate().cancel()
+        btnMasterToggle.animate().cancel()
+        btnHyperOs.animate().cancel()
+        llToggles.animate().cancel()
+
+        if (!animate) {
             if (connected) {
                 visualizer.visibility = View.VISIBLE
+                visualizer.alpha = 1f
+                visualizer.scaleX = 1f
+                visualizer.scaleY = 1f
                 btnMasterToggle.visibility = View.VISIBLE
+                btnMasterToggle.alpha = 1f
+                btnMasterToggle.scaleX = 1f
+                btnMasterToggle.scaleY = 1f
                 btnMasterToggle.isEnabled = true
-
-                visualizer.animate()
-                    .alpha(1f)
-                    .scaleX(1f)
-                    .scaleY(1f)
-                    .setDuration(fadeDuration)
-                    .setInterpolator(fluidEase)
-                    .start()
-
-                btnMasterToggle.animate()
-                    .alpha(1f)
-                    .scaleX(1f)
-                    .scaleY(1f)
-                    .setDuration(fadeDuration)
-                    .setInterpolator(fluidEase)
-                    .start()
+                btnHyperOs.translationY = 0f
+                llToggles.translationY = 0f
             } else {
+                visualizer.visibility = View.INVISIBLE
+                visualizer.alpha = 0f
+                visualizer.scaleX = 0.96f
+                visualizer.scaleY = 0.96f
+                visualizer.setDspActive(false)
+                btnMasterToggle.visibility = View.INVISIBLE
+                btnMasterToggle.alpha = 0f
+                btnMasterToggle.scaleX = 0.96f
+                btnMasterToggle.scaleY = 0.96f
                 btnMasterToggle.isEnabled = false
-                visualizer.animate()
-                    .alpha(0f)
-                    .scaleX(0.96f)
-                    .scaleY(0.96f)
-                    .setDuration(fadeDuration)
-                    .setInterpolator(fluidEase)
-                    .withEndAction {
-                        if (lastConnectedState == false) {
-                            visualizer.visibility = View.INVISIBLE
-                            visualizer.setDspActive(false)
-                        }
-                    }
-                    .start()
-
-                btnMasterToggle.animate()
-                    .alpha(0f)
-                    .scaleX(0.96f)
-                    .scaleY(0.96f)
-                    .setDuration(fadeDuration)
-                    .setInterpolator(fluidEase)
-                    .withEndAction {
-                        if (lastConnectedState == false) {
-                            btnMasterToggle.visibility = View.INVISIBLE
-                        }
-                    }
-                    .start()
+                btnHyperOs.translationY = travelY
+                llToggles.translationY = travelY
             }
-
-            btnHyperOs.animate()
-                .translationY(travelY)
-                .setDuration(moveDuration)
-                .setInterpolator(fluidEase)
-                .start()
-
-            llToggles.animate()
-                .translationY(travelY)
-                .setDuration(moveDuration)
-                .setInterpolator(fluidEase)
-                .start()
+            return
         }
 
-        if (btnHyperOs.top == 0) {
-            rootLayout.post {
-                runAnimation(animate = false)
-            }
+        val moveDuration = 520L
+        val fadeDuration = 320L
+        val fluidEase = PathInterpolator(0.22f, 1f, 0.36f, 1f)
+
+        if (connected) {
+            visualizer.visibility = View.VISIBLE
+            btnMasterToggle.visibility = View.VISIBLE
+            btnMasterToggle.isEnabled = true
+
+            visualizer.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(fadeDuration)
+                .setInterpolator(fluidEase)
+                .start()
+
+            btnMasterToggle.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(fadeDuration)
+                .setInterpolator(fluidEase)
+                .start()
         } else {
-            runAnimation(animate = !isInitial)
+            btnMasterToggle.isEnabled = false
+            visualizer.animate()
+                .alpha(0f)
+                .scaleX(0.96f)
+                .scaleY(0.96f)
+                .setDuration(fadeDuration)
+                .setInterpolator(fluidEase)
+                .withEndAction {
+                    if (lastConnectedState == false) {
+                        visualizer.visibility = View.INVISIBLE
+                        visualizer.setDspActive(false)
+                    }
+                }
+                .start()
+
+            btnMasterToggle.animate()
+                .alpha(0f)
+                .scaleX(0.96f)
+                .scaleY(0.96f)
+                .setDuration(fadeDuration)
+                .setInterpolator(fluidEase)
+                .withEndAction {
+                    if (lastConnectedState == false) {
+                        btnMasterToggle.visibility = View.INVISIBLE
+                    }
+                }
+                .start()
         }
+
+        btnHyperOs.animate()
+            .translationY(travelY)
+            .setDuration(moveDuration)
+            .setInterpolator(fluidEase)
+            .start()
+
+        llToggles.animate()
+            .translationY(travelY)
+            .setDuration(moveDuration)
+            .setInterpolator(fluidEase)
+            .start()
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -762,23 +797,37 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
 
         applyFluidMotion(connected)
 
-        if (isOriginal && connected) {
-            btnMasterToggle.alpha = 1.0f
-            visualizer.setDspActive(effectiveDspActive)
-            if (effectiveDspActive) {
-                btnMasterToggle.text = "[ ACTIVE ]"
-                btnMasterToggle.setTextColor(Color.parseColor("#00F0FF"))
+        if (connected) {
+            visualizer.visibility = View.VISIBLE
+            btnMasterToggle.visibility = View.VISIBLE
+            btnMasterToggle.isEnabled = true
+            if (isOriginal) {
+                btnMasterToggle.alpha = 1.0f
+                visualizer.setDspActive(effectiveDspActive)
+                if (effectiveDspActive) {
+                    btnMasterToggle.text = "[ ACTIVE ]"
+                    btnMasterToggle.setTextColor(Color.parseColor("#00F0FF"))
+                } else {
+                    btnMasterToggle.text = "[ BYPASSED ]"
+                    btnMasterToggle.setTextColor(Color.parseColor("#FFFFFF"))
+                }
             } else {
+                btnMasterToggle.alpha = 0.38f
                 btnMasterToggle.text = "[ BYPASSED ]"
-                btnMasterToggle.setTextColor(Color.parseColor("#FFFFFF"))
+                btnMasterToggle.setTextColor(Color.parseColor("#888888"))
+                visualizer.setDspActive(false)
             }
         } else {
-            if (connected) {
-                btnMasterToggle.alpha = if (isOriginal) 0.65f else 0.38f
-            }
+            btnMasterToggle.isEnabled = false
             btnMasterToggle.text = "[ BYPASSED ]"
             btnMasterToggle.setTextColor(Color.parseColor("#888888"))
             visualizer.setDspActive(false)
+            if (lastConnectedState == false) {
+                btnMasterToggle.visibility = View.INVISIBLE
+                btnMasterToggle.alpha = 0f
+                visualizer.visibility = View.INVISIBLE
+                visualizer.alpha = 0f
+            }
         }
 
         tvTelemetry.text = currentProfile.description

@@ -103,3 +103,48 @@
 3. **Home Screen Widgets** ([`app/src/main/res/layout/widget_*_layout.xml`](file:///d:/Mobile%20Projects/Buds2Pro-HyperOS-Optimizer/app/src/main/res/layout/)):
    - Compact homescreen widgets (2x1, 2x2, 2x4, 4x1, 4x2) providing glanceable DSP status and one-tap profile toggling.
 
+---
+
+## 5. Motion Design & Interaction System
+
+The motion system is built on **ColorOS Aquamorphic** and **Material Motion** principles, optimized for high-refresh-rate AMOLED displays (120Hz locked). Every motion conveys physical weight, surface tension, and organic fluid damping rather than artificial mechanical jerking.
+
+### 5.1 Global Motion Tokens
+
+| Token | Value | Target & Usage |
+| :--- | :--- | :--- |
+| `DURATION_TACTILE_PRESS` | `90ms` | Immediate haptic-linked compression on touch down. |
+| `DURATION_TACTILE_RELEASE` | `220ms` | Relaxing spring rebound upon touch release. |
+| `DURATION_FADE_TRANSITION` | `320ms` | Soft alpha / scale dissolution of secondary controls. |
+| `DURATION_FLUID_GLIDE` | `520ms` | Primary layout spatial continuity (vertical translation). |
+| `INTERPOLATOR_TACTILE_DOWN` | `PathInterpolator(0.20f, 0.00f, 0.00f, 1.00f)` | Sharp, responsive initial finger compression. |
+| `INTERPOLATOR_TACTILE_UP` | `PathInterpolator(0.20f, 1.00f, 0.30f, 1.00f)` | Gentle settle without overshoot or visual wobble. |
+| `INTERPOLATOR_AQUAMORPHIC` | `PathInterpolator(0.22f, 1.00f, 0.36f, 1.00f)` | ColorOS fluid deceleration curve (~65 frames at 120Hz). |
+
+### 5.2 UI Situation to Pattern Matrix
+
+| UI Situation | Motion Pattern | Implementation Strategy |
+| :--- | :--- | :--- |
+| **Earbuds Connect / Disconnect** | **Shared Axis Y + Fade Through** | Secondary controls (`visualizer`, `btnMasterToggle`) fade (`alpha` $0 \leftrightarrow 1$, `scale` $0.96 \leftrightarrow 1.0$) while primary controls (`btnHyperOs`, `llToggles`) glide along the Y-axis via GPU RenderThread `translationY`. |
+| **Interactive Button Press** | **Tactile Elastic Micro-interaction** | Touch down contracts to `0.965f` scale in 90ms. Touch release gently rebounds to `1.0f` in 220ms. If the finger slides outside view bounds, it cleanly cancels back to `1.0f`. |
+| **Audio Visualizer Waveform** | **Continuous Liquid Spline** | Catmull-Rom to Cubic Bezier 96-segment ribbon spline driven by hardware VSYNC (`postInvalidateOnAnimation`) and framed by exponential smoothing (`damping = 6.5`). |
+| **Profile Selection** | **Stateful Specular Crossfade** | Active button swaps to cyan (`#00F0FF`) with high-contrast text (`#0C0E12`), while siblings transition to carbon (`#161922`) with smooth ColorStateList tinting. |
+| **Modal Sheets / Guidelines** | **Container Transform / Shared Axis Z** | Expands from origin bounds or slides up smoothly on the Z-plane with scrim dimming. |
+
+### 5.3 Architectural Motion Invariants
+
+1. **Zero Layout Reflow (`requestLayout` Invariant)**:
+   - **NEVER** use `ConstraintSet.applyTo()` with `TransitionManager.beginDelayedTransition()` for dynamic runtime animations where views collapse or expand. This forces full CPU layout remeasures on every frame, resulting in stutter and multi-stage snapping.
+   - **ALWAYS** use direct RenderThread GPU matrix transforms: `translationY`, `alpha`, and `scaleX`/`scaleY` on `View.INVISIBLE` backgrounds.
+2. **Deterministic Startup Geometry**:
+   - Initial layout state must wait for layout resolution (`rootLayout.doOnLayout`) before applying spatial transforms (`travelY`).
+   - When setting initial states (`animate = false`), apply properties directly and synchronously without starting zero-duration animators.
+3. **No Overshoot Wobble**:
+   - Audio and engineering UI must feel stable and high-end. Never use `OvershootInterpolator` on buttons; use critically damped cubic beziers (`0.2, 1.0, 0.3, 1.0`).
+
+### 5.4 Reference Design Knowledge Base
+
+- **Material Motion System**: Container Transform, Shared Axis (X/Y/Z), Fade Through, and Elevation Morphing ([serbelga/Material-Motion-Samples](https://github.com/serbelga/Material-Motion-Samples)).
+- **Android Animation Set**: Custom interpolators, property animation, hardware layers ([OCNYang/Android-Animation-Set](https://github.com/OCNYang/Android-Animation-Set)).
+- **Compose & Physics Systems**: Damping ratios, stiffness, and mass modeling ([Jetpack Compose Animations](https://github.com/topics/compose-animations)).
+
