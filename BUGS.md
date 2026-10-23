@@ -8,9 +8,9 @@ This registry tracks every historical and currently active bug in the Soniq DSP 
 
 | Bug ID | Title | Status | Coupled With | Guard Type |
 | :--- | :--- | :---: | :--- | :--- |
-| **`BUG-001`** | HyperOS Sound Effects Profile Desync | **OPEN** | `BUG-002`, `BUG-003` | Automated (`scripts/device_smoke.sh`) |
+| **`BUG-001`** | HyperOS Sound Effects Profile Desync | **FIXED** | `BUG-002`, `BUG-003` | Automated (`scripts/device_smoke.sh`) |
 | **`BUG-002`** | `AudioEffectCenter` `Spatializer.setEnabled` Crash | **FIXED** | `BUG-001`, `BUG-003` | Automated (`scripts/device_smoke.sh` + Logcat assert) |
-| **`BUG-003`** | Phone Speaker Original Profile Reversion on Disconnect | **OPEN** | `BUG-001`, `BUG-002` | Automated (`scripts/device_smoke.sh`) + Manual |
+| **`BUG-003`** | Phone Speaker Original Profile Reversion on Disconnect | **FIXED** | `BUG-001`, `BUG-002` | Automated (`scripts/device_smoke.sh`) + Manual |
 | **`BUG-004`** | Visualizer Wave Stutter & Animator Repeat on 120Hz | **FIXED** | Independent | Automated (`scripts/verify.sh` Unit/Spline test) + Manual |
 | **`BUG-005`** | Gradle Wrapper Download Timeout & AGP Incompatibility | **FIXED** | Independent | Automated (`scripts/verify.sh` Gradle assemble test) |
 | **`BUG-006`** | Live Bluetooth Audio Format Telemetry Inaccuracy | **FIXED** | Independent | Automated (Unit Test `TelemetryLogicTest`) |
@@ -20,7 +20,7 @@ This registry tracks every historical and currently active bug in the Soniq DSP 
 ## Detailed Bug Registry
 
 ### `BUG-001`: HyperOS Sound Effects Profile Desynchronization
-- **Status**: **OPEN**
+- **Status**: **FIXED**
 - **Coupled With**: `BUG-002` (In-process reflection crash), `BUG-003` (Speaker baseline)
 - **Symptom**: User taps **DOLBY**, **XIAOMI**, or **ORIGINAL** in Soniq DSP. The app buttons update, but opening HyperOS **Settings > Sound & vibration > Sound effects** reveals that the system profile slider has not moved or remains on the previous preset.
 - **Repro Steps**:
@@ -28,10 +28,13 @@ This registry tracks every historical and currently active bug in the Soniq DSP 
   2. Tap **XIAOMI**.
   3. Pull down notification shade or open **Settings > Sound & vibration > Sound effects**.
   4. Observe whether "Xiaomi Sound" is active in system settings.
-- **Root Cause**: Confirmed. Xiaomi HyperOS framework (`com.miui.misound`) maintains independent state across `Settings.Global`/`Settings.System` and its internal `AudioEffectCenter` service. Setting keys alone without driving the active implementer or dispatching `ACTION_SYSTEM_UI_DOLBY_EFFECT_SWITCH` leaves the system UI stale.
-- **Fix**: Commit `3385f37` in [`HyperOSHelper.kt`](file:///d:/Mobile%20Projects/Buds2Pro-HyperOS-Optimizer/app/src/main/java/com/audiophile/buds2prooptimizer/util/HyperOSHelper.kt) in functions `setHyperOsEffect()` and `invokeAudioEffectCenter()`.
-- **Must-Not-Break**: Must NOT invoke unregistered effect strings (e.g. `"none"`) in `AudioEffectCenter` (triggers `BUG-002` fatal crash). Must update both `Settings.Global` and `Settings.System` coherently.
-- **Regression Check**: `scripts/device_smoke.sh` Step 2 (Asserts `Settings.Global` and `Settings.System` match active profile via ADB).
+- **Root Cause**: Confirmed via `miui-framework.jar` and `MiSound.apk` reverse engineering:
+  1. In `AudioEffectCenter.setEffectActive(centerInstance, "misound", false)`, the framework switch explicitly calls `mPresenter.setDolbyActive()`! Deactivating `misound` was re-activating Dolby Atmos every time!
+  2. In `HeadsetSettingsFW` (`LH/l->E0`), `ACTION_AUDIO_EFFECT_REFRESH` unpacks a `Bundle` extra named `"bundle"`. Dispatching intent extras as flat keys was ignored by the presenter.
+  3. Profile switching in `AudioEffectCenter` requires calling `setEffectActive("dolby", true)` for Dolby, `setEffectActive("misound", true)` for Xiaomi Sound, and `setEffectActive("dolby", false)` with `last_select_effect_none=1` for Original.
+- **Fix**: [`HyperOSHelper.kt`](file:///d:/Mobile%20Projects/Buds2Pro-HyperOS-Optimizer/app/src/main/java/com/audiophile/buds2prooptimizer/util/HyperOSHelper.kt) in `invokeAudioEffectCenter()`, `updateSystemSettings()`, and `triggerMiSoundStateRefresh()`.
+- **Must-Not-Break**: Must NOT invoke unregistered effect strings (e.g. `"none"`) or call `setEffectActive("misound", false)` in `AudioEffectCenter`. Must update both `Settings.Global` and `Settings.System` coherently and supply the structured `"bundle"` extra.
+- **Regression Check**: `scripts/device_smoke.sh` Step 2 (Asserts `Settings.Global` and `Settings.System` match active profile via ADB, and UI dump verifies `Xiaomi Sound` and `Dolby Atmos` text).
 
 ---
 
@@ -52,7 +55,7 @@ This registry tracks every historical and currently active bug in the Soniq DSP 
 ---
 
 ### `BUG-003`: Phone Speaker Original Profile Reversion on Disconnect
-- **Status**: **OPEN**
+- **Status**: **FIXED**
 - **Coupled With**: `BUG-001`, `BUG-002`
 - **Symptom**: When Galaxy Buds are disconnected and audio routes to phone speakers, HyperOS sound settings show Dolby Atmos active. When the user taps **ORIGINAL** in Soniq DSP, HyperOS Settings does not show the unenhanced baseline (or reverts to Dolby Atmos).
 - **Repro Steps**:
@@ -61,8 +64,15 @@ This registry tracks every historical and currently active bug in the Soniq DSP 
   3. Tap **ORIGINAL**.
   4. Open HyperOS **Settings > Sound & vibration > Sound effects**.
   5. Check if Dolby Atmos remains enabled for the built-in speaker.
-- **Root Cause**: Confirmed. On Xiaomi HyperOS devices, built-in phone speakers do not have a dedicated 3-way profile selector like headphones do; instead, Dolby Atmos is the speaker master switch (`dolby_effect_switch`). Reverting to "Original Sound" on phone speakers requires setting `dolby_effect_switch = 0`, `effect_implementer = "none"`, and `last_select_effect_none = 1` across both `Settings.Global` and `Settings.System`, and releasing any Session 0 priority 10000 locks.
-- **Fix**: Commit `3385f37` in [`MainActivity.kt`](file:///d:/Mobile%20Projects/Buds2Pro-HyperOS-Optimizer/app/src/main/java/com/audiophile/buds2prooptimizer/ui/MainActivity.kt) (`setProfile`) and [`HyperOSHelper.kt`](file:///d:/Mobile%20Projects/Buds2Pro-HyperOS-Optimizer/app/src/main/java/com/audiophile/buds2prooptimizer/util/HyperOSHelper.kt).
+- **Root Cause**: Confirmed via `miui-framework.jar` bytecode disassembly of `MTKEffectPresenter.isNoneAvailable()`:
+  ```java
+  public boolean isNoneAvailable() {
+      return EffectUtils.isHeadSetOn(mContext);
+  }
+  ```
+  On Xiaomi HyperOS devices, built-in phone speakers return `false` for `isHeadSetOn()`, so `isNoneAvailable()` evaluates to `false`. When `isNoneAvailable()` is false, `HeadsetSettingsFW` deliberately removes `"none"` ("Original Sound") from the dropdown menu by design.
+  On disconnect, Dolby Atmos was previously forced active because `setEffectActive("misound", false)` was invoked.
+- **Fix**: [`HyperOSHelper.kt`](file:///d:/Mobile%20Projects/Buds2Pro-HyperOS-Optimizer/app/src/main/java/com/audiophile/buds2prooptimizer/util/HyperOSHelper.kt) and [`MainActivity.kt`](file:///d:/Mobile%20Projects/Buds2Pro-HyperOS-Optimizer/app/src/main/java/com/audiophile/buds2prooptimizer/ui/MainActivity.kt): removed rogue `setEffectActive("misound", false)` call; properly applied `dolby_effect_switch = 0`, `effect_implementer = "none"`, and Session 0 priority 10000 Dolby DAP disablement so speaker output remains uncolored.
 - **Must-Not-Break**: Harman EQ on Session 0 MUST remain bypassed (`[ BYPASSED ]`) when on phone speaker to protect speaker hardware and avoid battery drain.
 - **Regression Check**: `scripts/device_smoke.sh` Step 3 (Asserts `dolby_effect_switch == 0` when in Original mode on speaker).
 

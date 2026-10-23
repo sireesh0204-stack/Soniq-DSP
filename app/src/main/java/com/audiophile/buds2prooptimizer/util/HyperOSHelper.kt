@@ -3,8 +3,10 @@ package com.audiophile.buds2prooptimizer.util
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
+import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import dalvik.system.PathClassLoader
@@ -152,28 +154,24 @@ object HyperOSHelper {
 
             when (effect) {
                 "dolby" -> {
-                    runCatching { setEffectActiveMethod.invoke(centerInstance, "misound", false) }
                     setEffectActiveMethod.invoke(centerInstance, "dolby", true)
                 }
                 "misound" -> {
-                    runCatching { setEffectActiveMethod.invoke(centerInstance, "dolby", false) }
                     setEffectActiveMethod.invoke(centerInstance, "misound", true)
                 }
                 else -> {
-                    // "none" (Original Sound): explicitly deactivate both dolby and misound.
-                    // Never invoke setEffectActive("none", ...) as "none" is not a registered
-                    // AudioEffectCenter effect and triggers a SecurityException / IllegalArgumentException.
-                    val dolbyDeactivated = runCatching {
+                    // "none" (Original Sound):
+                    // In AudioEffectCenter, calling setEffectActive("dolby", false) delegates to
+                    // getEffectForDolbyOff(). If Settings.Global.last_select_effect_none == 1 and
+                    // headset is connected, it deactivates Dolby and switches to "none".
+                    // CRITICAL INVARIANT (BUG-001 & BUG-002):
+                    // 1. NEVER call setEffectActive("misound", false) because AudioEffectCenter's internal
+                    //    switch explicitly invokes mPresenter.setDolbyActive(), re-enabling Dolby!
+                    // 2. NEVER call setEffectActive("none", true) because that invokes Spatializer.setEnabled
+                    //    which crashes untrusted apps with a SecurityException.
+                    runCatching {
                         setEffectActiveMethod.invoke(centerInstance, "dolby", false)
-                        true
-                    }.getOrDefault(false)
-
-                    val miSoundDeactivated = runCatching {
-                        setEffectActiveMethod.invoke(centerInstance, "misound", false)
-                        true
-                    }.getOrDefault(false)
-
-                    return dolbyDeactivated || miSoundDeactivated
+                    }
                 }
             }
             true
@@ -284,8 +282,21 @@ object HyperOSHelper {
             }
             context.sendBroadcast(dolbyIntent)
 
+            val isHeadset = isHeadsetConnected(context)
+            val bundle = Bundle().apply {
+                putBoolean("dolby_available", true)
+                putBoolean("misound_available", isHeadset)
+                putBoolean("none_available", isHeadset)
+                putBoolean("dolby_active", normalizedEffect == "dolby")
+                putBoolean("misound_active", normalizedEffect == "misound")
+                putBoolean("surround_available", false)
+                putBoolean("spatial_available", false)
+                putBoolean("surround_active", false)
+                putBoolean("spatial_active", false)
+            }
             val refreshIntent = Intent(ACTION_AUDIO_EFFECT_REFRESH).apply {
                 setPackage("com.miui.misound")
+                putExtra("bundle", bundle)
                 putExtra(KEY_EFFECT_IMPLEMENTER, normalizedEffect)
                 putExtra(KEY_LAST_SELECT_EFFECT_NONE, isNone)
             }
@@ -527,6 +538,8 @@ object HyperOSHelper {
      */
     private fun triggerMiSoundStateRefresh(context: Context, effect: String) {
         val enableDolby = (effect == "dolby")
+        val enableMiSound = (effect == "misound")
+        val isHeadset = isHeadsetConnected(context)
 
         // 5a. Unprivileged UI Dolby switch broadcast observed by HeadsetSettingsActivity
         runCatching {
@@ -565,13 +578,48 @@ object HyperOSHelper {
             Log.d(TAG, "Dispatched $action for session 0 to com.miui.misound")
         }
 
-        // 5d. Safe protected broadcast (guarded against SecurityException on Android 16 / API 36)
+        // 5d. Broadcast ACTION_AUDIO_EFFECT_REFRESH with bundle extra expected by LH/l->E0
         runCatching {
+            val bundle = Bundle().apply {
+                putBoolean("dolby_available", true)
+                putBoolean("misound_available", isHeadset)
+                putBoolean("none_available", isHeadset)
+                putBoolean("dolby_active", enableDolby)
+                putBoolean("misound_active", enableMiSound)
+                putBoolean("surround_available", false)
+                putBoolean("spatial_available", false)
+                putBoolean("surround_active", false)
+                putBoolean("spatial_active", false)
+            }
             val refreshIntent = Intent(ACTION_AUDIO_EFFECT_REFRESH).apply {
                 setPackage("com.miui.misound")
+                putExtra("bundle", bundle)
+                putExtra(KEY_EFFECT_IMPLEMENTER, effect)
+                putExtra(KEY_LAST_SELECT_EFFECT_NONE, if (effect == "none") 1 else 0)
             }
             context.sendBroadcast(refreshIntent)
-            Log.d(TAG, "Dispatched $ACTION_AUDIO_EFFECT_REFRESH broadcast.")
+            Log.d(TAG, "Dispatched $ACTION_AUDIO_EFFECT_REFRESH with bundle extra to com.miui.misound.")
+        }
+    }
+
+    /**
+     * Helper to detect if a physical or Bluetooth headset/DAC is currently connected.
+     */
+    fun isHeadsetConnected(context: Context): Boolean {
+        val manager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return false
+        val devices = manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        return devices.any { device ->
+            when (device.type) {
+                AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+                AudioDeviceInfo.TYPE_BLE_HEADSET,
+                AudioDeviceInfo.TYPE_BLE_SPEAKER,
+                AudioDeviceInfo.TYPE_BLE_BROADCAST,
+                AudioDeviceInfo.TYPE_WIRED_HEADSET,
+                AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+                AudioDeviceInfo.TYPE_USB_HEADSET,
+                AudioDeviceInfo.TYPE_USB_DEVICE -> true
+                else -> false
+            }
         }
     }
 
