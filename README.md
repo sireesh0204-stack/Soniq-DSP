@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo/aszsd_monogram.svg" alt="ASZSD Monogram" width="300" />
+</p>
+
 # Soniq DSP // Studio HyperOS Audio Engine 🎧
 ### Bit-Perfect Audio Pipeline & Dynamic Acoustic Visualizer for Galaxy Buds 2 Pro & HyperOS Devices
 
