@@ -108,13 +108,14 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvTelemetry" />
 
-    <!-- Visualizer is now compressed naturally by enlarged top/bottom margins -->
+    <!-- Visualizer with dedicated compact height and balanced vertical breathing space -->
     <com.audiophile.buds2prooptimizer.ui.AetherVisualizerView
         android:id="@+id/visualizer"
         android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="32dp"
-        android:layout_marginBottom="32dp"
+        android:layout_height="140dp"
+        android:layout_marginTop="28dp"
+        android:layout_marginBottom="28dp"
+        app:layout_constraintVertical_bias="0.45"
         app:layout_constraintBottom_toTopOf="@id/btnMasterToggle"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -123,8 +124,8 @@
     <Button
         android:id="@+id/btnMasterToggle"
         android:layout_width="0dp"
-        android:layout_height="60dp"
-        android:layout_marginBottom="24dp"
+        android:layout_height="58dp"
+        android:layout_marginBottom="22dp"
         android:backgroundTint="#161922"
         android:letterSpacing="0.1"
         android:text="[ BYPASSED ]"
@@ -160,7 +161,7 @@
         android:id="@+id/llToggles"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="28dp"
+        android:layout_marginBottom="30dp"
         android:gravity="center"
         android:orientation="horizontal"
         app:layout_constraintBottom_toTopOf="@id/ivAszsdWatermark"

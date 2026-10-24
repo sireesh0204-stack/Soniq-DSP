@@ -249,7 +249,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         val llToggles = findViewById<View>(R.id.llToggles) ?: return
 
         val density = resources.displayMetrics.density
-        val targetY = tvCodecStatus.bottom + (28 * density).toInt()
+        val targetY = tvCodecStatus.bottom + (36 * density).toInt()
         val travelY = if (connected) 0f else (targetY - btnHyperOs.top).toFloat()
 
         val animate = !isInitial
@@ -275,13 +275,13 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             } else {
                 visualizer.visibility = View.INVISIBLE
                 visualizer.alpha = 0f
-                visualizer.scaleX = 0.96f
-                visualizer.scaleY = 0.96f
+                visualizer.scaleX = 0.95f
+                visualizer.scaleY = 0.95f
                 visualizer.setDspActive(false)
                 btnMasterToggle.visibility = View.INVISIBLE
                 btnMasterToggle.alpha = 0f
-                btnMasterToggle.scaleX = 0.96f
-                btnMasterToggle.scaleY = 0.96f
+                btnMasterToggle.scaleX = 0.95f
+                btnMasterToggle.scaleY = 0.95f
                 btnMasterToggle.isEnabled = false
                 btnHyperOs.translationY = travelY
                 llToggles.translationY = travelY
@@ -289,38 +289,70 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             return
         }
 
-        val moveDuration = 520L
-        val fadeDuration = 320L
+        val moveDuration = 540L
         val fluidEase = PathInterpolator(0.22f, 1f, 0.36f, 1f)
+        val revealEase = PathInterpolator(0.20f, 1f, 0.30f, 1f)
+        val fadeEase = PathInterpolator(0.30f, 0f, 0.10f, 1f)
 
         if (connected) {
             visualizer.visibility = View.VISIBLE
             btnMasterToggle.visibility = View.VISIBLE
             btnMasterToggle.isEnabled = true
 
+            // Shared Axis Y: Primary controls glide down with fluid organic deceleration
+            btnHyperOs.animate()
+                .translationY(0f)
+                .setDuration(moveDuration)
+                .setInterpolator(fluidEase)
+                .start()
+
+            llToggles.animate()
+                .translationY(0f)
+                .setDuration(moveDuration)
+                .setInterpolator(fluidEase)
+                .start()
+
+            // Secondary audio controls reveal with subtle staggered breathing space
             visualizer.animate()
                 .alpha(1f)
                 .scaleX(1f)
                 .scaleY(1f)
-                .setDuration(fadeDuration)
-                .setInterpolator(fluidEase)
+                .setStartDelay(60L)
+                .setDuration(360L)
+                .setInterpolator(revealEase)
                 .start()
 
             btnMasterToggle.animate()
                 .alpha(1f)
                 .scaleX(1f)
                 .scaleY(1f)
-                .setDuration(fadeDuration)
-                .setInterpolator(fluidEase)
+                .setStartDelay(90L)
+                .setDuration(360L)
+                .setInterpolator(revealEase)
                 .start()
         } else {
             btnMasterToggle.isEnabled = false
+
+            // Primary controls glide smoothly up to rested position below codec badge
+            btnHyperOs.animate()
+                .translationY(travelY)
+                .setDuration(moveDuration)
+                .setInterpolator(fluidEase)
+                .start()
+
+            llToggles.animate()
+                .translationY(travelY)
+                .setDuration(moveDuration)
+                .setInterpolator(fluidEase)
+                .start()
+
+            // Visualizer & master toggle softly dissolve without competing for visual attention
             visualizer.animate()
                 .alpha(0f)
-                .scaleX(0.96f)
-                .scaleY(0.96f)
-                .setDuration(fadeDuration)
-                .setInterpolator(fluidEase)
+                .scaleX(0.95f)
+                .scaleY(0.95f)
+                .setDuration(260L)
+                .setInterpolator(fadeEase)
                 .withEndAction {
                     if (lastConnectedState == false) {
                         visualizer.visibility = View.INVISIBLE
@@ -331,10 +363,10 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
 
             btnMasterToggle.animate()
                 .alpha(0f)
-                .scaleX(0.96f)
-                .scaleY(0.96f)
-                .setDuration(fadeDuration)
-                .setInterpolator(fluidEase)
+                .scaleX(0.95f)
+                .scaleY(0.95f)
+                .setDuration(260L)
+                .setInterpolator(fadeEase)
                 .withEndAction {
                     if (lastConnectedState == false) {
                         btnMasterToggle.visibility = View.INVISIBLE
@@ -343,17 +375,6 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                 .start()
         }
 
-        btnHyperOs.animate()
-            .translationY(travelY)
-            .setDuration(moveDuration)
-            .setInterpolator(fluidEase)
-            .start()
-
-        llToggles.animate()
-            .translationY(travelY)
-            .setDuration(moveDuration)
-            .setInterpolator(fluidEase)
-            .start()
     }
 
     @SuppressLint("ClickableViewAccessibility")
