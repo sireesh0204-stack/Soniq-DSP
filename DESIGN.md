@@ -2,7 +2,11 @@
 
 > **Project**: Buds2Pro-HyperOS-Optimizer (`Soniq DSP`)  
 > **Aesthetic Direction**: Cyberpunk Audiophile / Matte Obsidian (Inspired by CRED, Nothing OS, and Sennheiser HE-1)  
-> **Form Factor**: Android Smartphone Portrait (Primary Hardware: Xiaomi Redmi Turbo 5, 6.67" AMOLED, 1220x2712 px, 120Hz)
+> **Form Factor**: Android Smartphone Portrait (Primary Hardware: Xiaomi Redmi Turbo 5, 6.67" AMOLED, 1220x2712 px, 120Hz)  
+> **Master Specifications**:
+> - Detailed Aesthetic & Element Catalog: [`UI.md`](UI.md)
+> - 5-Stage Construction Pipeline & Quality Gates: [`UI_HARNESS.md`](UI_HARNESS.md)
+> - Motion Dynamics, Spring Physics & 120Hz Pipeline: [`ANIMATIONS.md`](ANIMATIONS.md)
 
 ---
 
