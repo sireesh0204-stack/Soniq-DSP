@@ -28,7 +28,6 @@ import android.provider.Settings
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.PathInterpolator
-import android.view.animation.OvershootInterpolator
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.ImageView
@@ -64,7 +63,6 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     private var isDspActive = false
     private var currentProfile = Buds2ProAudioProfile.ORIGINAL_SOUND
     private var lastConnectedState: Boolean? = null
-    private var lastRenderedProfile: Buds2ProAudioProfile? = null
 
     @Volatile
     private var isTrackPlaying = false
@@ -291,73 +289,70 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             return
         }
 
-        val moveDuration = 680L
-        val elasticUpEase = OvershootInterpolator(1.22f)
-        val elasticDownEase = OvershootInterpolator(1.15f)
-        val retreatDuration = 440L
-        val retreatEase = PathInterpolator(0.33f, 0f, 0.20f, 1f)
-        val revealDuration = 520L
-        val emergeEase = OvershootInterpolator(1.12f)
+        val moveDuration = 480L
+        val fluidEase = PathInterpolator(0.20f, 1f, 0.30f, 1f)
+        val revealEase = PathInterpolator(0.20f, 1f, 0.30f, 1f)
+        val fadeEase = PathInterpolator(0.30f, 0f, 0.10f, 1f)
 
         if (connected) {
             visualizer.visibility = View.VISIBLE
             btnMasterToggle.visibility = View.VISIBLE
             btnMasterToggle.isEnabled = true
 
-            // Shared Axis Y: Primary controls glide down with elastic rubber-band cushion
+            // Shared Axis Y: Primary controls glide down with smooth organic deceleration
             btnHyperOs.animate()
                 .translationY(0f)
                 .setDuration(moveDuration)
-                .setInterpolator(elasticDownEase)
+                .setInterpolator(fluidEase)
                 .start()
 
             llToggles.animate()
                 .translationY(0f)
                 .setDuration(moveDuration)
-                .setInterpolator(elasticDownEase)
+                .setInterpolator(fluidEase)
                 .start()
 
-            // Secondary audio controls emerge smoothly forward from depth
+            // Secondary audio controls reveal cleanly without stutter
             visualizer.animate()
                 .alpha(1f)
                 .scaleX(1f)
                 .scaleY(1f)
-                .setStartDelay(80L)
-                .setDuration(revealDuration)
-                .setInterpolator(emergeEase)
+                .setStartDelay(40L)
+                .setDuration(340L)
+                .setInterpolator(revealEase)
                 .start()
 
             btnMasterToggle.animate()
                 .alpha(1f)
                 .scaleX(1f)
                 .scaleY(1f)
-                .setStartDelay(130L)
-                .setDuration(revealDuration)
-                .setInterpolator(emergeEase)
+                .setStartDelay(60L)
+                .setDuration(340L)
+                .setInterpolator(revealEase)
                 .start()
         } else {
             btnMasterToggle.isEnabled = false
 
-            // Primary controls glide upward with dynamic momentum and elastic settle
+            // Primary controls glide smoothly up to rested position below codec badge
             btnHyperOs.animate()
                 .translationY(travelY)
                 .setDuration(moveDuration)
-                .setInterpolator(elasticUpEase)
+                .setInterpolator(fluidEase)
                 .start()
 
             llToggles.animate()
                 .translationY(travelY)
                 .setDuration(moveDuration)
-                .setInterpolator(elasticUpEase)
+                .setInterpolator(fluidEase)
                 .start()
 
-            // Visualizer & master toggle slowly fade and retreat backward into Z-depth
+            // Visualizer & master toggle softly dissolve and slightly scale without lag
             visualizer.animate()
                 .alpha(0f)
-                .scaleX(0.88f)
-                .scaleY(0.88f)
-                .setDuration(retreatDuration)
-                .setInterpolator(retreatEase)
+                .scaleX(0.96f)
+                .scaleY(0.96f)
+                .setDuration(240L)
+                .setInterpolator(fadeEase)
                 .withEndAction {
                     if (lastConnectedState == false) {
                         visualizer.visibility = View.INVISIBLE
@@ -368,10 +363,10 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
 
             btnMasterToggle.animate()
                 .alpha(0f)
-                .scaleX(0.88f)
-                .scaleY(0.88f)
-                .setDuration(retreatDuration)
-                .setInterpolator(retreatEase)
+                .scaleX(0.96f)
+                .scaleY(0.96f)
+                .setDuration(240L)
+                .setInterpolator(fadeEase)
                 .withEndAction {
                     if (lastConnectedState == false) {
                         btnMasterToggle.visibility = View.INVISIBLE
@@ -399,9 +394,9 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                     MotionEvent.ACTION_DOWN -> {
                         isPressedDown = true
                         v.animate()
-                            .scaleX(0.965f)
-                            .scaleY(0.965f)
-                            .setDuration(90L)
+                            .scaleX(0.96f)
+                            .scaleY(0.96f)
+                            .setDuration(70L)
                             .setInterpolator(PathInterpolator(0.2f, 0f, 0f, 1f))
                             .start()
                         true
@@ -434,16 +429,14 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                         v.animate()
                             .scaleX(1f)
                             .scaleY(1f)
-                            .setDuration(220L)
+                            .setDuration(160L)
                             .setInterpolator(PathInterpolator(0.2f, 1f, 0.3f, 1f))
                             .start()
 
                         val isInside = event.x >= 0 && event.x <= v.width &&
                                        event.y >= 0 && event.y <= v.height
                         if (wasPressed && isInside) {
-                            v.post {
-                                onClickAction()
-                            }
+                            onClickAction()
                         }
                         true
                     }
@@ -853,33 +846,6 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                 visualizer.visibility = View.INVISIBLE
                 visualizer.alpha = 0f
             }
-        }
-
-        val previousProfile = lastRenderedProfile
-        lastRenderedProfile = currentProfile
-
-        if (previousProfile != null && previousProfile != currentProfile) {
-            val activeButton = when (currentProfile) {
-                Buds2ProAudioProfile.ORIGINAL_SOUND -> btnProfileOriginal
-                Buds2ProAudioProfile.DOLBY_ATMOS -> btnProfileDolby
-                Buds2ProAudioProfile.XIAOMI_SOUND -> btnProfileXiaomi
-            }
-            activeButton.scaleX = 0.94f
-            activeButton.scaleY = 0.94f
-            activeButton.animate()
-                .scaleX(1.05f)
-                .scaleY(1.05f)
-                .setDuration(160L)
-                .setInterpolator(PathInterpolator(0.2f, 0f, 0f, 1f))
-                .withEndAction {
-                    activeButton.animate()
-                        .scaleX(1.0f)
-                        .scaleY(1.0f)
-                        .setDuration(240L)
-                        .setInterpolator(OvershootInterpolator(1.3f))
-                        .start()
-                }
-                .start()
         }
 
         tvTelemetry.text = currentProfile.description
