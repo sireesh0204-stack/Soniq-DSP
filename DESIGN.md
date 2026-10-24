@@ -107,6 +107,8 @@
 
 ## 5. Motion Design & Interaction System
 
+> **Comprehensive Motion Specification**: See [`ANIMATIONS.md`](ANIMATIONS.md) for full taxonomy, state diagrams, GitHub research repositories, and planned physics implementations.
+
 The motion system is built on **ColorOS Aquamorphic** and **Material Motion** principles, optimized for high-refresh-rate AMOLED displays (120Hz locked). Every motion conveys physical weight, surface tension, and organic fluid damping rather than artificial mechanical jerking.
 
 ### 5.1 Global Motion Tokens
