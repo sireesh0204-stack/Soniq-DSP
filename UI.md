@@ -156,3 +156,4 @@ On modern $20:9$ tall smartphone displays, physical screen width narrows while v
    - UI/UX: `Copy Bar`, `Snippet Bar`, `Metadata Strip`.
 6. **Bottom Dock with Hero Center FAB** (`UPI` button):
    - UI/UX: `Bottom Navigation Bar` with `Hero Center Floating Action Button (FAB)`.
+
